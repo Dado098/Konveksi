@@ -1,14 +1,14 @@
-import { apiClient } from './client'
 import type {
-  AlokasiProduksi,
-  BahanBaku,
-  Cabang,
-  DetailKebutuhanBahan,
-  LogKerja,
-  Pesanan,
-  Supplier,
-  User,
+    AlokasiProduksi,
+    BahanBaku,
+    Cabang,
+    DetailKebutuhanBahan,
+    LogKerja,
+    Pesanan,
+    Supplier,
+    User,
 } from '../types/api'
+import { apiClient } from './client'
 
 // api adalah lapisan service untuk semua komunikasi HTTP ke backend Golang.
 // Setiap fungsi merepresentasikan kontrak endpoint yang ada di `main.go` backend.

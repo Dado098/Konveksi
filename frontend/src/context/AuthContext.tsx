@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState } from 'react'
+import { parseApiError } from '../api/client'
 import { api } from '../api/services'
 import type { Role, User } from '../types/api'
-import { parseApiError } from '../api/client'
 
 interface AuthState {
   user: User | null
