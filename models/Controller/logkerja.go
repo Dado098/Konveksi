@@ -10,14 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET LOG
+// GetLog mengembalikan log kerja karyawan.
+// Endpoint: GET /api/log
 func GetLog(c *gin.Context) {
 	var data []models.LogKerjaKaryawan
 	config.DB.Find(&data)
 	c.JSON(http.StatusOK, data)
 }
 
-// CREATE LOG
+// CreateLog menambahkan log aktivitas baru.
+// Endpoint: POST /api/log
 func CreateLog(c *gin.Context) {
 	var input models.LogKerjaKaryawan
 
@@ -30,7 +32,8 @@ func CreateLog(c *gin.Context) {
 	c.JSON(http.StatusOK, input)
 }
 
-// DELETE LOG (opsional)
+// DeleteLog menghapus log kerja berdasarkan ID.
+// Endpoint: DELETE /api/log/:id
 func DeleteLog(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 

@@ -23,6 +23,7 @@ const initialForm: BahanForm = {
 }
 
 export const StockPage = () => {
+  // State utama: data bahan, cabang, supplier, serta form modal
   const [bahan, setBahan] = useState<BahanBaku[]>([])
   const [cabang, setCabang] = useState<Cabang[]>([])
   const [supplier, setSupplier] = useState<Supplier[]>([])
@@ -31,6 +32,7 @@ export const StockPage = () => {
   const [editing, setEditing] = useState<BahanBaku | null>(null)
   const [form, setForm] = useState<BahanForm>(initialForm)
 
+  // loadData mengambil data master yang dipakai pada tabel dan dropdown
   const loadData = useCallback(async () => {
     try {
       const [bahanData, cabangData, supplierData] = await Promise.all([
@@ -51,6 +53,7 @@ export const StockPage = () => {
     void loadData()
   }, [loadData])
 
+  // openCreate menyiapkan form kosong untuk tambah bahan
   const openCreate = () => {
     setEditing(null)
     setForm({
@@ -61,6 +64,7 @@ export const StockPage = () => {
     setOpen(true)
   }
 
+  // openEdit mengisi form dengan data existing untuk diubah
   const openEdit = (item: BahanBaku) => {
     setEditing(item)
     setForm({
@@ -73,6 +77,7 @@ export const StockPage = () => {
     setOpen(true)
   }
 
+  // submit mengirim data ke backend (create atau update)
   const submit = async (event: FormEvent) => {
     event.preventDefault()
 
@@ -100,6 +105,7 @@ export const StockPage = () => {
     }
   }
 
+  // remove menghapus bahan berdasarkan id
   const remove = async (id: number) => {
     try {
       await api.deleteBahan(id)
@@ -109,6 +115,7 @@ export const StockPage = () => {
     }
   }
 
+  // rowData menambahkan status label berdasarkan stok vs batas minimum
   const rowData = useMemo(() => {
     return bahan.map((item) => ({
       ...item,

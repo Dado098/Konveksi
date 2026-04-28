@@ -12,6 +12,7 @@ export const OrdersPage = () => {
   const [orders, setOrders] = useState<Pesanan[]>([])
   const [error, setError] = useState<string | null>(null)
 
+  // loadData mengambil daftar pesanan untuk tabel utama
   const loadData = useCallback(async () => {
     try {
       const result = await api.getPesanan()
@@ -26,6 +27,7 @@ export const OrdersPage = () => {
     void loadData()
   }, [loadData])
 
+  // removeOrder menghapus pesanan lalu refresh daftar
   const removeOrder = async (id: number) => {
     try {
       await api.deletePesanan(id)
@@ -35,6 +37,7 @@ export const OrdersPage = () => {
     }
   }
 
+  // exportedCsv membangun string CSV dari data pesanan
   const exportedCsv = useMemo(() => {
     const rows = [
       ['id_pesanan', 'nama_pesanan', 'total_qty', 'tgl_deadline', 'status_global'],
@@ -50,6 +53,7 @@ export const OrdersPage = () => {
     return rows.map((row) => row.join(',')).join('\n')
   }, [orders])
 
+  // downloadCsv memicu unduhan file CSV ke client
   const downloadCsv = () => {
     const blob = new Blob([exportedCsv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)

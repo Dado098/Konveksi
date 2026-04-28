@@ -10,7 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET ALL USER
+// GetUser mengembalikan daftar user untuk kebutuhan autentikasi & manajemen.
+// Endpoint: GET /api/user
 func GetUser(c *gin.Context) {
 	var users []models.User
 
@@ -20,7 +21,8 @@ func GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
-// GET USER BY ID
+// GetUserByID mengambil detail user berdasarkan ID.
+// Endpoint: GET /api/user/:id
 func GetUserByID(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -42,7 +44,9 @@ func GetUserByID(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// CREATE USER
+// CreateUser menambahkan user baru dengan validasi nama dan role.
+// Role valid: owner | admin | karyawan
+// Endpoint: POST /api/user
 func CreateUser(c *gin.Context) {
 	var input models.User
 
@@ -81,7 +85,8 @@ func CreateUser(c *gin.Context) {
 	c.JSON(http.StatusOK, input)
 }
 
-// UPDATE USER
+// UpdateUser memperbarui data user berdasarkan ID.
+// Endpoint: PUT /api/user/:id
 func UpdateUser(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -117,7 +122,8 @@ func UpdateUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// DELETE USER
+// DeleteUser menghapus user berdasarkan ID.
+// Endpoint: DELETE /api/user/:id
 func DeleteUser(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)

@@ -11,6 +11,7 @@ export const OrderDetailPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
 
+  // order dan alokasi menampung data pesanan serta alokasi terkait
   const [order, setOrder] = useState<Pesanan | null>(null)
   const [alokasi, setAlokasi] = useState<AlokasiProduksi[]>([])
   const [editing, setEditing] = useState(false)
@@ -18,6 +19,7 @@ export const OrderDetailPage = () => {
 
   const orderId = Number(id)
 
+  // fetchData memuat detail pesanan + alokasi untuk halaman ini
   const fetchData = useCallback(async () => {
     try {
       const [orders, allocation] = await Promise.all([api.getPesanan(), api.getAlokasi()])
@@ -34,6 +36,7 @@ export const OrderDetailPage = () => {
     void fetchData()
   }, [fetchData])
 
+  // deleteOrder menghapus pesanan lalu kembali ke daftar
   const deleteOrder = async () => {
     if (!order) return
 
@@ -45,10 +48,12 @@ export const OrderDetailPage = () => {
     }
   }
 
+  // totalAlokasi menghitung total qty dari semua alokasi produksi
   const totalAlokasi = useMemo(() => {
     return alokasi.reduce((accumulator, item) => accumulator + item.qty_alokasi, 0)
   }, [alokasi])
 
+  // exportDetail mengunduh CSV detail alokasi pesanan
   const exportDetail = () => {
     const rows = [
       ['id_alokasi', 'id_cabang', 'qty_alokasi', 'status_lokal'],
@@ -69,6 +74,7 @@ export const OrderDetailPage = () => {
     URL.revokeObjectURL(url)
   }
 
+  // submitEdit mengirim perubahan data pesanan ke backend
   const submitEdit = async () => {
     if (!order) return
 

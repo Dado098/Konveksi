@@ -8,6 +8,7 @@ const statuses = ['Menunggu', 'Proses', 'Selesai']
 
 export const OrderFormPage = () => {
   const navigate = useNavigate()
+  // form menyimpan input pembuatan pesanan baru
   const [form, setForm] = useState({
     nama_pesanan: '',
     total_qty: 0,
@@ -16,6 +17,7 @@ export const OrderFormPage = () => {
   })
   const [error, setError] = useState<string | null>(null)
 
+  // submit melakukan validasi dasar dan mengirim data ke backend
   const submit = async (event: FormEvent) => {
     event.preventDefault()
 

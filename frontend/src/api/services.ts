@@ -10,7 +10,11 @@ import type {
   User,
 } from '../types/api'
 
+// api adalah lapisan service untuk semua komunikasi HTTP ke backend Golang.
+// Setiap fungsi merepresentasikan kontrak endpoint yang ada di `main.go` backend.
+// Pendekatan ini menjaga komponen UI tetap bersih dari detail request.
 export const api = {
+  // CABANG
   getCabang: async () => {
     const { data } = await apiClient.get<Cabang[]>('/cabang')
     return data
@@ -20,6 +24,7 @@ export const api = {
     return data
   },
 
+  // BAHAN BAKU
   getBahan: async () => {
     const { data } = await apiClient.get<BahanBaku[]>('/bahan')
     return data
@@ -36,11 +41,13 @@ export const api = {
     await apiClient.delete(`/bahan/${id}`)
   },
 
+  // SUPPLIER
   getSupplier: async () => {
     const { data } = await apiClient.get<Supplier[]>('/supplier')
     return data
   },
 
+  // PESANAN
   getPesanan: async () => {
     const { data } = await apiClient.get<Pesanan[]>('/pesanan')
     return data
@@ -57,21 +64,25 @@ export const api = {
     await apiClient.delete(`/pesanan/${id}`)
   },
 
+  // ALOKASI PRODUKSI
   getAlokasi: async () => {
     const { data } = await apiClient.get<AlokasiProduksi[]>('/alokasi')
     return data
   },
 
+  // DETAIL KEBUTUHAN BAHAN
   getDetailBahan: async () => {
     const { data } = await apiClient.get<DetailKebutuhanBahan[]>('/detail_kebutuhan_bahan')
     return data
   },
 
+  // USER (dipakai untuk autentikasi sederhana di frontend)
   getUser: async () => {
     const { data } = await apiClient.get<User[]>('/user')
     return data
   },
 
+  // LOG AKTIVITAS
   getLog: async () => {
     const { data } = await apiClient.get<LogKerja[]>('/log')
     return data

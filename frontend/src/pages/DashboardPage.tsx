@@ -22,9 +22,11 @@ const statusColor: Record<string, string> = {
 const piePalette = ['#5a52ea', '#ffa44c', '#d4d8e0']
 
 export const DashboardPage = () => {
+  // data menampung hasil fetch API untuk ringkasan dashboard
   const [data, setData] = useState<DashboardState>({ pesanan: [], bahan: [], alokasi: [] })
   const [error, setError] = useState<string | null>(null)
 
+  // fetchData memuat seluruh data yang diperlukan dashboard dalam satu request batch
   const fetchData = useCallback(async () => {
     try {
       const [pesanan, bahan, alokasi] = await Promise.all([api.getPesanan(), api.getBahan(), api.getAlokasi()])
@@ -39,10 +41,12 @@ export const DashboardPage = () => {
     void fetchData()
   }, [fetchData])
 
+  // Polling ringan untuk update realtime (stok, produksi, status pesanan)
   useRealtime(() => {
     void fetchData()
   })
 
+  // groupedStatus merangkum jumlah pesanan berdasarkan status global
   const groupedStatus = useMemo(() => {
     const seed = { selesai: 0, proses: 0, menunggu: 0 }
     return data.pesanan.reduce((accumulator, item) => {
@@ -54,6 +58,7 @@ export const DashboardPage = () => {
     }, seed)
   }, [data.pesanan])
 
+  // productionSeries merangkum produksi per cabang untuk chart bar
   const productionSeries = useMemo(() => {
     const grouped = new Map<number, number>()
     data.alokasi.forEach((item) => {
@@ -66,6 +71,7 @@ export const DashboardPage = () => {
     }))
   }, [data.alokasi])
 
+  // lowStock menghitung jumlah bahan yang berada di bawah batas minimum
   const lowStock = useMemo(() => {
     return data.bahan.filter((item) => item.stok_aktual <= item.batas_minimum).length
   }, [data.bahan])

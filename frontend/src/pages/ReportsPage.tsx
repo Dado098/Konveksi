@@ -15,6 +15,7 @@ export const ReportsPage = () => {
   const [statusFilter, setStatusFilter] = useState<string[]>([])
   const [dateFilter, setDateFilter] = useState('')
 
+  // loadData mengambil semua data pesanan untuk laporan
   const loadData = useCallback(async () => {
     try {
       const response = await api.getPesanan()
@@ -29,6 +30,7 @@ export const ReportsPage = () => {
     void loadData()
   }, [loadData])
 
+  // filteredOrders menerapkan filter status dan tanggal di client
   const filteredOrders = useMemo(() => {
     return orders.filter((item) => {
       const passStatus = statusFilter.length === 0 || statusFilter.includes(item.status_global)
@@ -37,6 +39,7 @@ export const ReportsPage = () => {
     })
   }, [orders, statusFilter, dateFilter])
 
+  // exportCsv mengunduh hasil filter ke file CSV
   const exportCsv = () => {
     const rows = [
       ['kode', 'nama_pemesan', 'jumlah', 'tanggal', 'status'],

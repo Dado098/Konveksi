@@ -1,9 +1,10 @@
-import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import type { Role } from '../types/api'
 
+// Daftar role valid mengikuti validasi di backend controller user.
 const roles: Role[] = ['owner', 'admin', 'karyawan']
 
 export const LoginPage = () => {
@@ -15,6 +16,10 @@ export const LoginPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // onSubmit menangani proses login:
+  // - validasi input dasar
+  // - panggil `login` dari AuthContext
+  // - redirect ke dashboard jika berhasil
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)

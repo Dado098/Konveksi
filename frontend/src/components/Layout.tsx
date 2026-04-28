@@ -11,17 +11,20 @@ const navItems = [
 ]
 
 export const Layout = () => {
+  // user dan logout berasal dari AuthContext
   const { user, logout } = useAuth()
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
+        {/* Sidebar utama: brand + menu navigasi */}
         <div className="brand">
           <div className="brand-logo">JR</div>
           <div className="brand-sub">KONVEKSI</div>
         </div>
 
         <nav className="side-nav">
+          {/* Menu utama dashboard */}
           {navItems.map((item) => {
             const Icon = item.icon
             return (
@@ -45,6 +48,7 @@ export const Layout = () => {
 
       <div className="main-panel">
         <header className="topbar">
+          {/* Topbar: search dummy, notifikasi, dan user info */}
           <div className="search-wrap">
             <Search size={16} />
             <input placeholder="Search" />
@@ -63,6 +67,7 @@ export const Layout = () => {
         </header>
 
         <main className="page-content">
+          {/* Outlet menampilkan halaman sesuai route */}
           <Outlet />
         </main>
       </div>

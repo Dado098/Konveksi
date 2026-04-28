@@ -10,7 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET ALL PESANAN
+// GetPesanan mengembalikan seluruh data pesanan global.
+// Endpoint: GET /api/pesanan
 func GetPesanan(c *gin.Context) {
 	var data []models.PesananGlobal
 
@@ -21,7 +22,8 @@ func GetPesanan(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
-// CREATE PESANAN
+// CreatePesanan menambahkan pesanan baru.
+// Endpoint: POST /api/pesanan
 func CreatePesanan(c *gin.Context) {
 	var input models.PesananGlobal
 
@@ -37,7 +39,8 @@ func CreatePesanan(c *gin.Context) {
 	c.JSON(http.StatusOK, input)
 }
 
-// UPDATE PESANAN
+// UpdatePesanan memperbarui pesanan berdasarkan ID.
+// Endpoint: PUT /api/pesanan/:id
 func UpdatePesanan(c *gin.Context) {
 	// Ambil ID dari URL
 	idParam := c.Param("id")
@@ -65,7 +68,8 @@ func UpdatePesanan(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
-// DELETE PESANAN
+// DeletePesanan menghapus data pesanan berdasarkan ID.
+// Endpoint: DELETE /api/pesanan/:id
 func DeletePesanan(c *gin.Context) {
 	idParam := c.Param("id")
 	id, _ := strconv.Atoi(idParam)

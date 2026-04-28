@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"jr-konveksi/config"
 	"jr-konveksi/models"
@@ -12,17 +13,17 @@ import (
 
 func main() {
 
-	// Connect database
+	// 1) Inisialisasi koneksi database
 	config.ConnectDatabase()
 
-	// Cek apakah DB nil
+	// Validasi koneksi berhasil sebelum aplikasi berjalan lebih jauh
 	if config.DB == nil {
 		log.Fatal("Database belum terkoneksi")
 	}
 
 	log.Println("Starting AutoMigrate...")
 
-	// Auto migrate semua tabel
+	// 2) Auto migration agar struktur tabel sinkron dengan model terbaru
 	err := config.DB.AutoMigrate(
 		&models.Cabang{},
 		&models.Supplier{},
@@ -40,7 +41,12 @@ func main() {
 
 	log.Println("Migration Success")
 
+	// 3) Seed data awal untuk memudahkan testing pertama kali
+	seedInitialData()
+
+	// 4) Inisialisasi router + middleware
 	r := gin.Default()
+	r.Use(corsMiddleware())
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -48,7 +54,7 @@ func main() {
 		})
 	})
 
-	// Define API routes
+	// 5) Registrasi endpoint API per modul
 	api := r.Group("/api")
 	{
 		// CABANG
@@ -102,4 +108,119 @@ func main() {
 	}
 
 	r.Run(":3000")
+}
+
+// corsMiddleware mengizinkan frontend Vite mengakses API backend.
+// Middleware ini juga menangani preflight request (OPTIONS).
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.GetHeader("Origin")
+		if origin == "http://localhost:5173" || origin == "http://127.0.0.1:5173" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// seedInitialData mengisi data default bila tabel masih kosong.
+// Tujuannya agar sistem bisa langsung dipakai untuk demo/testing,
+// terutama untuk proses login dan dashboard awal.
+func seedInitialData() {
+	var cabangCount int64
+	config.DB.Model(&models.Cabang{}).Count(&cabangCount)
+
+	if cabangCount == 0 {
+		config.DB.Create(&models.Cabang{NamaCabang: "Cabang Utama", Lokasi: "Jakarta"})
+		config.DB.Create(&models.Cabang{NamaCabang: "Cabang Bandung", Lokasi: "Bandung"})
+	}
+
+	var firstCabang models.Cabang
+	if err := config.DB.First(&firstCabang).Error; err != nil {
+		log.Println("Seed skipped: cabang belum tersedia")
+		return
+	}
+
+	var userCount int64
+	config.DB.Model(&models.User{}).Count(&userCount)
+	if userCount == 0 {
+		config.DB.Create(&models.User{IDCabang: firstCabang.IDCabang, Nama: "Sutianto", Role: "owner"})
+		config.DB.Create(&models.User{IDCabang: firstCabang.IDCabang, Nama: "Admin Konveksi", Role: "admin"})
+		config.DB.Create(&models.User{IDCabang: firstCabang.IDCabang, Nama: "Operator 1", Role: "karyawan"})
+	}
+
+	var supplierCount int64
+	config.DB.Model(&models.Supplier{}).Count(&supplierCount)
+	if supplierCount == 0 {
+		config.DB.Create(&models.Supplier{
+			NamaSupplier:   "PT Tekstil Nusantara",
+			Alamat:         "Jl. Industri 1",
+			NoHP:           "081234567890",
+			Email:          "cs@tekstilnusantara.id",
+			NamaPerusahaan: "Tekstil Nusantara",
+		})
+	}
+
+	var supplier models.Supplier
+	config.DB.First(&supplier)
+
+	var bahanCount int64
+	config.DB.Model(&models.BahanBaku{}).Count(&bahanCount)
+	if bahanCount == 0 && supplier.IDSupplier != 0 {
+		config.DB.Create(&models.BahanBaku{IDCabang: firstCabang.IDCabang, IDSupplier: supplier.IDSupplier, NamaBahan: "Cotton Combed", StokAktual: 1234, BatasMinimum: 200})
+		config.DB.Create(&models.BahanBaku{IDCabang: firstCabang.IDCabang, IDSupplier: supplier.IDSupplier, NamaBahan: "American Drill", StokAktual: 456, BatasMinimum: 500})
+	}
+
+	var pesananCount int64
+	config.DB.Model(&models.PesananGlobal{}).Count(&pesananCount)
+	if pesananCount == 0 {
+		config.DB.Create(&models.PesananGlobal{
+			NamaPesanan:  "Alvidiano",
+			TotalQty:     1234,
+			TglDeadline:  time.Now().AddDate(0, 1, 0),
+			StatusGlobal: "Proses",
+		})
+	}
+
+	var pesanan models.PesananGlobal
+	config.DB.First(&pesanan)
+
+	var alokasiCount int64
+	config.DB.Model(&models.AlokasiProduksi{}).Count(&alokasiCount)
+	if alokasiCount == 0 && pesanan.IDPesanan != 0 {
+		config.DB.Create(&models.AlokasiProduksi{IDPesanan: pesanan.IDPesanan, IDCabang: firstCabang.IDCabang, QtyAlokasi: 500, StatusLokal: "Proses"})
+	}
+
+	var alokasi models.AlokasiProduksi
+	config.DB.First(&alokasi)
+
+	var bahan models.BahanBaku
+	config.DB.First(&bahan)
+
+	var detailCount int64
+	config.DB.Model(&models.DetailKebutuhanBahan{}).Count(&detailCount)
+	if detailCount == 0 && alokasi.IDAlokasi != 0 && bahan.IDBahan != 0 {
+		config.DB.Create(&models.DetailKebutuhanBahan{IDAlokasi: alokasi.IDAlokasi, IDBahan: bahan.IDBahan, QtyBahanPerPcs: 0.5})
+	}
+
+	var logCount int64
+	config.DB.Model(&models.LogKerjaKaryawan{}).Count(&logCount)
+	if logCount == 0 && alokasi.IDAlokasi != 0 {
+		var firstUser models.User
+		config.DB.First(&firstUser)
+		if firstUser.IDUser != 0 {
+			config.DB.Create(&models.LogKerjaKaryawan{IDAlokasi: alokasi.IDAlokasi, IDUser: firstUser.IDUser, Tahapan: "Tambah"})
+		}
+	}
+
+	log.Println("Seed check completed")
 }

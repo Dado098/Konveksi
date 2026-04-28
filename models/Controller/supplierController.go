@@ -10,7 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET ALL SUPPLIER
+// GetSupplier mengembalikan daftar supplier.
+// Endpoint: GET /api/supplier
 func GetSupplier(c *gin.Context) {
 	var suppliers []models.Supplier
 
@@ -21,7 +22,8 @@ func GetSupplier(c *gin.Context) {
 	c.JSON(http.StatusOK, suppliers)
 }
 
-// GET SUPPLIER BY ID
+// GetSupplierByID mengambil supplier berdasarkan ID.
+// Endpoint: GET /api/supplier/:id
 func GetSupplierByID(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -43,7 +45,8 @@ func GetSupplierByID(c *gin.Context) {
 	c.JSON(http.StatusOK, supplier)
 }
 
-// CREATE SUPPLIER
+// CreateSupplier menambahkan supplier baru.
+// Endpoint: POST /api/supplier
 func CreateSupplier(c *gin.Context) {
 	var input models.Supplier
 
@@ -65,7 +68,8 @@ func CreateSupplier(c *gin.Context) {
 	c.JSON(http.StatusOK, input)
 }
 
-// UPDATE SUPPLIER
+// UpdateSupplier memperbarui data supplier berdasarkan ID.
+// Endpoint: PUT /api/supplier/:id
 func UpdateSupplier(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -103,7 +107,8 @@ func UpdateSupplier(c *gin.Context) {
 	c.JSON(http.StatusOK, supplier)
 }
 
-// DELETE SUPPLIER
+// DeleteSupplier menghapus supplier berdasarkan ID.
+// Endpoint: DELETE /api/supplier/:id
 func DeleteSupplier(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)

@@ -10,6 +10,7 @@ export const HistoryPage = () => {
   const [logs, setLogs] = useState<LogKerja[]>([])
   const [error, setError] = useState<string | null>(null)
 
+  // loadData memuat log aktivitas dari backend
   const loadData = useCallback(async () => {
     try {
       const response = await api.getLog()
@@ -24,6 +25,7 @@ export const HistoryPage = () => {
     void loadData()
   }, [loadData])
 
+  // Polling berkala untuk update riwayat
   useRealtime(() => {
     void loadData()
   }, 10000)

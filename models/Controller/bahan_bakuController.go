@@ -10,14 +10,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET ALL BAHAN
+// GetBahan mengembalikan seluruh data bahan baku.
+// Endpoint: GET /api/bahan
 func GetBahan(c *gin.Context) {
 	var bahan []models.BahanBaku
 	config.DB.Find(&bahan)
 	c.JSON(http.StatusOK, bahan)
 }
 
-// CREATE BAHAN
+// CreateBahan menambah data bahan baku baru.
+// Validasi memastikan nama tidak kosong dan stok tidak negatif.
+// Endpoint: POST /api/bahan
 func CreateBahan(c *gin.Context) {
 	var bahan models.BahanBaku
 
@@ -41,7 +44,8 @@ func CreateBahan(c *gin.Context) {
 	c.JSON(http.StatusOK, bahan)
 }
 
-// UPDATE BAHAN
+// UpdateBahan memperbarui data bahan baku berdasarkan ID.
+// Endpoint: PUT /api/bahan/:id
 func UpdateBahan(c *gin.Context) {
 	idParam := c.Param("id")
 	id, _ := strconv.Atoi(idParam)
@@ -82,7 +86,8 @@ func UpdateBahan(c *gin.Context) {
 	c.JSON(http.StatusOK, bahan)
 }
 
-// DELETE BAHAN
+// DeleteBahan menghapus data bahan baku.
+// Endpoint: DELETE /api/bahan/:id
 func DeleteBahan(c *gin.Context) {
 	idParam := c.Param("id")
 	id, _ := strconv.Atoi(idParam)

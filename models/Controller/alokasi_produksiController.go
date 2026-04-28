@@ -10,14 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET ALL ALOKASI
+// GetAlokasi mengembalikan seluruh data alokasi produksi.
+// Endpoint: GET /api/alokasi
 func GetAlokasi(c *gin.Context) {
 	var data []models.AlokasiProduksi
 	config.DB.Find(&data)
 	c.JSON(http.StatusOK, data)
 }
 
-// CREATE ALOKASI
+// CreateAlokasi menambah data alokasi produksi.
+// Endpoint: POST /api/alokasi
 func CreateAlokasi(c *gin.Context) {
 	var input models.AlokasiProduksi
 
@@ -30,7 +32,8 @@ func CreateAlokasi(c *gin.Context) {
 	c.JSON(http.StatusOK, input)
 }
 
-// UPDATE ALOKASI
+// UpdateAlokasi memperbarui data alokasi produksi berdasarkan ID.
+// Endpoint: PUT /api/alokasi/:id
 func UpdateAlokasi(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 
@@ -49,7 +52,8 @@ func UpdateAlokasi(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
-// DELETE ALOKASI
+// DeleteAlokasi menghapus data alokasi produksi.
+// Endpoint: DELETE /api/alokasi/:id
 func DeleteAlokasi(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 

@@ -10,14 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET ALL DETAIL
+// GetDetailBahan mengambil seluruh detail kebutuhan bahan.
+// Endpoint: GET /api/detail_kebutuhan_bahan
 func GetDetailBahan(c *gin.Context) {
 	var data []models.DetailKebutuhanBahan
 	config.DB.Find(&data)
 	c.JSON(http.StatusOK, data)
 }
 
-// CREATE DETAIL
+// CreateDetailBahan menambah detail kebutuhan bahan.
+// Endpoint: POST /api/detail_kebutuhan_bahan
 func CreateDetailBahan(c *gin.Context) {
 	var input models.DetailKebutuhanBahan
 
@@ -30,7 +32,8 @@ func CreateDetailBahan(c *gin.Context) {
 	c.JSON(http.StatusOK, input)
 }
 
-// UPDATE DETAIL
+// UpdateDetailBahan memperbarui detail kebutuhan bahan berdasarkan ID.
+// Endpoint: PUT /api/detail_kebutuhan_bahan/:id
 func UpdateDetailBahan(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 
@@ -49,7 +52,8 @@ func UpdateDetailBahan(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
-// DELETE DETAIL
+// DeleteDetailBahan menghapus detail kebutuhan bahan.
+// Endpoint: DELETE /api/detail_kebutuhan_bahan/:id
 func DeleteDetailBahan(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 

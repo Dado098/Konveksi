@@ -10,14 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET ALL CABANG
+// GetCabang mengembalikan daftar seluruh cabang.
+// Endpoint: GET /api/cabang
 func GetCabang(c *gin.Context) {
 	var cabang []models.Cabang
 	config.DB.Find(&cabang)
 	c.JSON(http.StatusOK, cabang)
 }
 
-// GET CABANG BY ID
+// GetCabangByID mengambil detail cabang berdasarkan ID.
+// Endpoint: GET /api/cabang/:id
 func GetCabangByID(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -35,7 +37,8 @@ func GetCabangByID(c *gin.Context) {
 	c.JSON(http.StatusOK, cabang)
 }
 
-// CREATE CABANG
+// CreateCabang menambah cabang baru dengan validasi nama dan lokasi.
+// Endpoint: POST /api/cabang
 func CreateCabang(c *gin.Context) {
 	var cabang models.Cabang
 
@@ -59,7 +62,8 @@ func CreateCabang(c *gin.Context) {
 	c.JSON(http.StatusOK, cabang)
 }
 
-// UPDATE CABANG
+// UpdateCabang memperbarui data cabang berdasarkan ID.
+// Endpoint: PUT /api/cabang/:id
 func UpdateCabang(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -100,7 +104,8 @@ func UpdateCabang(c *gin.Context) {
 	c.JSON(http.StatusOK, cabang)
 }
 
-// DELETE CABANG
+// DeleteCabang menghapus data cabang berdasarkan ID.
+// Endpoint: DELETE /api/cabang/:id
 func DeleteCabang(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
