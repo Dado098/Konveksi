@@ -1,0 +1,425 @@
+Template Dokumen Uji Perangkat Lunak dan UAT
+ 
+DOKUMEN PENGUJIAN PERANGKAT LUNAK
+Termasuk Test Plan, Test Scenario, Test Case, Bug Report, Regression Test, dan User Acceptance Test (UAT)
+
+
+Komponen Nama Aplikasi / Sistem Nama Institusi / Tim Versi Aplikasi Versi Dokumen Tanggal Pengujian Penyusun Reviewer / Dosen 
+
+Keterangan JR KONVEKSI
+
+Petunjuk penggunaan: Ganti teks bergaris bawah sesuai proyek. Kolom Actual Result, Status, dan Catatan diisi setelah pengujian dilaksanakan.
+
+Nama Proyek: ____________________ | Versi: ____ | Tanggal: ____
+
+Daftar Isi
+1. Identitas dan Riwayat Dokumen 2. Tujuan dan Ruang Lingkup Pengujian 3. Strategi dan Jenis Pengujian 4. Lingkungan Pengujian 5. Kriteria Masuk, Keluar, dan Risiko 6. Test Scenario 7. Test Case 8. Bug Report 9. Regression Testing 10. User Acceptance Test (UAT) 11. Rekapitulasi dan Kesimpulan 12. Persetujuan
+
+Template Dokumen Uji Perangkat Lunak dan UAT
+
+Nama Proyek: ____________________ | Versi: ____ | Tanggal: ____
+
+1. Identitas dan Riwayat Dokumen
+
+Template Dokumen Uji Perangkat Lunak dan UAT
+
+Komponen Nama Dokumen Nama Aplikasi Modul / Fitur Versi Aplikasi Versi Dokumen Tanggal Pengujian Tim Penguji
+Developer / Tim Pengembang
+
+Keterangan Dokumen Pengujian Perangkat Lunak Contoh: Sistem Informasi Perpustakaan Digital Contoh: Login, Data Buku, Peminjaman, Laporan 1.0 1.0 5 Mei 2026
+Daffa Arya Wiranata, Muhammad Dhafa, Gading Anggara Putra P., Fauzi Ikhsan Suswanto
+
+Stakeholder / Pengguna Akhir
+
+________________
+
+1.1 Riwayat Perubahan Dokumen
+
+Versi 1.0 1.1
+
+Tanggal ____/____/______ ____/____/______
+
+Perubahan Dokumen awal pengujian Revisi setelah review
+
+Penyusun __________ __________
+
+2. Tujuan dan Ruang Lingkup Pengujian
+ Memastikan aplikasi berjalan sesuai kebutuhan fungsional dan non-fungsional.  Menemukan defect/bug sebelum sistem digunakan oleh pengguna akhir.  Memastikan alur input, proses, output, validasi, integrasi, dan hak akses berjalan benar.  Menilai kesiapan aplikasi sebelum rilis melalui User Acceptance Test (UAT).
+
+2.1 Fitur yang Diuji
+No 1
+2 3 4 5
+
+Fitur / Modul Login dan Logout
+Manajemen Data Master Transaksi Utama Laporan Pengaturan Akun
+
+Deskripsi Autentikasi pengguna sesuai hak akses Tambah, ubah, hapus, dan lihat data Proses bisnis inti sistem Menampilkan dan mengekspor laporan Ubah profil dan password
+
+Prioritas Tinggi
+Tinggi Tinggi Sedang Sedang
+
+2.2 Fitur yang Tidak Diuji
+No 1 2
+
+Fitur Integrasi pembayaran online Aplikasi mobile
+
+Alasan Tidak Diuji Belum tersedia pada versi ini Ruang lingkup hanya aplikasi web
+
+3. Strategi dan Jenis Pengujian
+
+Jenis Pengujian Functional Testing Validation Testing UI Testing Integration Testing Regression Testing
+Security Basic Testing User Acceptance Test
+
+Tujuan Memastikan fungsi berjalan sesuai requirement Memastikan input tidak valid ditolak sistem Memastikan tampilan mudah dipahami dan konsisten Memastikan modul saling terhubung Memastikan perbaikan tidak merusak fitur lama
+Memeriksa keamanan dasar aplikasi
+Memastikan sistem diterima pengguna akhir
+
+Contoh Aktivitas Uji login, tambah data, pencarian Field kosong, format email salah Label, tombol, pesan error Peminjaman mengurangi stok Uji ulang fitur terkait setelah bug fix Session, role access, SQL injection sederhana Pengguna menjalankan skenario bisnis nyata
+
+Nama Proyek: ____________________ | Versi: ____ | Tanggal: ____
+
+4. Lingkungan Pengujian
+Komponen Sistem Operasi Browser Database Server Bahasa / Framework Perangkat Uji Akun Pengujian
+
+Template Dokumen Uji Perangkat Lunak dan UAT
+Spesifikasi Windows 11 / Linux / macOS Google Chrome, Mozilla Firefox, Microsoft Edge MySQL / PostgreSQL / SQL Server Localhost / Staging Server / Production-like Environment Contoh: PHP Laravel, Java Spring, Node.js, React Laptop / PC / Tablet / Smartphone Admin, Operator, User
+
+5. Kriteria Masuk, Keluar, dan Risiko
+
+5.1 Entry Criteria
+ Requirement atau user story sudah disetujui.  Fitur sudah tersedia di environment pengujian.  Data uji dan akun uji sudah disiapkan.  Test case sudah direview.
+
+5.2 Exit Criteria
+ Seluruh test case prioritas tinggi telah dijalankan.  Bug critical dan high sudah diperbaiki atau memiliki keputusan resmi.  Regression testing telah dilakukan setelah perbaikan.  UAT telah ditandatangani stakeholder.
+
+5.3 Risiko Pengujian
+Risiko Data uji belum lengkap Environment tidak stabil Perubahan requirement mendadak
+
+Dampak Pengujian tidak mencakup variasi kasus Hasil uji tidak konsisten Test case tidak relevan
+
+Mitigasi Siapkan data normal, boundary, dan invalid Gunakan environment staging yang terkunci Update test case dan minta approval
+
+Nama Proyek: ____________________ | Versi: ____ | Tanggal: ____
+
+6. Test Scenario
+ID Skenario SC-001
+
+Modul Login
+
+SC-002
+
+Login
+
+SC-003
+SC-004 SC-005
+SC-006
+
+Login
+Data Master Data Master
+Data Master
+
+SC-007
+
+Pencarian
+
+SC-008
+
+Transaksi
+
+SC-009
+
+Transaksi
+
+SC-010
+
+Laporan
+
+Template Dokumen Uji Perangkat Lunak dan UAT
+
+Skenario Pengujian Login menggunakan akun valid
+Login menggunakan password salah
+Logout dari sistem Menambah data baru Mengubah data Menghapus data
+Mencari data berdasarkan keyword
+Membuat transaksi valid Membuat transaksi dengan data tidak valid Menampilkan laporan berdasarkan filter tanggal
+
+Tujuan Memastikan user dapat masuk ke sistem Memastikan sistem menolak akses tidak valid Memastikan session berakhir dengan benar Memastikan data berhasil disimpan Memastikan data berhasil diperbarui Memastikan data dapat dihapus sesuai aturan Memastikan hasil pencarian sesuai keyword Memastikan proses bisnis utama berjalan Memastikan validasi transaksi berjalan
+Memastikan laporan sesuai periode
+
+Prioritas Tinggi Tinggi Sedang Tinggi Tinggi Sedang Sedang Tinggi Tinggi Sedang
+
+7. Test Case
+Panduan status: Gunakan Pass jika hasil aktual sesuai expected result, Fail jika tidak sesuai, Blocked jika pengujian tidak dapat dilakukan karena kendala environment/data/dependency.
+
+Test Case ID TC-001 TC-002 TC-003 TC-004 TC-005 TC-006 TC-007 TC-008
+
+Modul Login Login Login Data Master Data Master Pencarian Transaksi Laporan
+
+Skenario Login berhasil Password salah Field kosong Tambah data valid Tambah data kosong Cari data Transaksi berhasil Filter laporan
+
+Pre-condition User sudah terdaftar
+User sudah terdaftar User berada di halaman login Admin sudah login
+Admin sudah login
+Data tersedia User login dan data tersedia Data transaksi tersedia
+
+Data Uji username: admin; password: admin123 username: admin; password: salah123 Username dan password kosong Data lengkap dan valid
+Semua field kosong
+Keyword: Algoritma
+Data transaksi valid
+Tanggal awal dan akhir
+
+Langkah Uji
+1. Buka halaman login 2. Isi username dan password 3. Klik Login
+1. Buka halaman login 2. Isi password salah 3. Klik Login
+1. Kosongkan field 2. Klik Login
+1. Buka menu data 2. Klik Tambah 3. Isi form 4. Simpan
+1. Buka form tambah 2. Kosongkan field 3. Simpan
+1. Buka daftar data 2. Ketik keyword 3. Klik Cari
+1. Pilih item 2. Isi detail transaksi 3. Simpan
+1. Buka menu laporan 2. Isi filter tanggal 3. Klik Tampilkan
+
+Expected Result Dashboard tampil
+
+Actual Result
+
+Pesan error tampil dan akses ditolak
+Validasi wajib isi tampil
+Data tersimpan dan tampil di daftar
+Sistem menampilkan pesan validasi
+Data sesuai keyword tampil
+Transaksi tersimpan dengan status benar
+Laporan sesuai periode tampil
+
+Nama Proyek: ____________________ | Versi: ____ | Tanggal: ____
+
+Status
+
+8. Bug Report
+
+Bug ID BUG-001
+BUG-002 BUG-003 BUG-004
+
+Judul Bug
+Tombol Simpan tidak merespons
+Pesan validasi kurang jelas
+
+Modul Data Master Login
+
+Severity High Medium
+
+Priority High Medium
+
+Template Dokumen Uji Perangkat Lunak dan UAT
+
+Langkah Reproduksi
+1. Login admin 2. Tambah data 3. Klik Simpan
+1. Kosongkan form 2. Klik Login
+
+Expected Result
+Data tersimpan
+Pesan menjelaskan field wajib
+
+Actual Result Tidak ada respons Pesan hanya "Error"
+
+Status Open Open
+
+Assigned To Developer A Developer B
+
+8.1 Kategori Severity dan Priority
+Level Critical High Medium Low
+
+Severity: Dampak Bug Sistem tidak dapat digunakan atau data rusak Fitur utama tidak berjalan Fitur berjalan tetapi tidak sesuai sebagian Masalah minor tampilan/teks
+
+Priority: Urgensi Perbaikan Harus segera diperbaiki sebelum rilis Perlu diperbaiki dalam sprint/rilis ini Diperbaiki setelah isu tinggi selesai Diperbaiki jika waktu memungkinkan
+
+9. Regression Testing
+
+Regression ID REG-001
+
+Bug/Change Terkait BUG-001
+
+REG-002 REG-003
+
+BUG-002
+
+Area yang Diuji Ulang Tambah data, daftar data, edit data Login valid, login invalid, validasi kosong
+
+Expected Result Data tersimpan dan tidak merusak edit data Pesan validasi benar dan login valid tetap berhasil
+
+Actual Result
+
+Status
+
+Catatan
+
+Nama Proyek: ____________________ | Versi: ____ | Tanggal: ____
+
+Template Dokumen Uji Perangkat Lunak dan UAT
+
+10. User Acceptance Test (UAT)
+ UAT adalah pengujian oleh pengguna akhir atau stakeholder untuk memastikan sistem sesuai kebutuhan bisnis.  UAT berfokus pada kesesuaian proses kerja, kemudahan penggunaan, dan kesiapan sistem untuk digunakan.  Hasil UAT dapat berupa diterima, diterima dengan catatan, atau ditolak untuk rilis.
+
+10.1 Kriteria Penerimaan UAT
+
+No
+
+Kriteria Penerimaan
+
+1
+
+Pengguna dapat login sesuai hak akses
+
+Pengguna dapat menjalankan
+
+2
+
+proses bisnis utama dari awal
+
+sampai akhir
+
+3
+
+Data yang tersimpan sesuai input pengguna
+
+4
+
+Laporan sesuai filter dan kebutuhan stakeholder
+
+5
+
+Tampilan mudah dipahami oleh pengguna akhir
+
+6
+
+Tidak ada bug critical atau high yang menghambat penggunaan
+
+Status
+
+Catatan
+
+10.2 Form Pelaksanaan UAT
+
+No
+
+Fitur
+
+Skenario UAT
+
+Pengguna masuk
+
+1
+
+Login
+
+menggunakan akun
+
+valid
+
+2
+
+Data Master
+
+Admin menambah data baru
+
+Pengguna
+
+3
+
+Transaksi
+
+menjalankan
+
+transaksi utama
+
+Pengguna mencari
+
+4
+
+Pencarian
+
+data dengan
+
+keyword
+
+Admin membuka
+
+5
+
+Laporan
+
+laporan berdasarkan
+
+tanggal
+
+6
+
+Logout
+
+Pengguna keluar dari sistem
+
+Hasil yang Diharapkan Masuk ke dashboard sesuai role Data tersimpan dan tampil di daftar Transaksi tercatat dengan status benar
+Data yang relevan tampil
+Laporan sesuai periode tampil
+Session berakhir dan kembali ke login
+
+Hasil Pengguna
+
+Status
+
+10.3 Pernyataan Hasil UAT
+Berdasarkan hasil User Acceptance Test yang telah dilakukan, aplikasi dinyatakan:
+
+Catatan
+
+ [ ] Diterima tanpa catatan  [ ] Diterima dengan catatan minor  [ ] Ditolak / perlu perbaikan mayor
+
+Catatan Perbaikan UAT 1. 2. 3.
+
+11. Rekapitulasi dan Kesimpulan
+
+Jenis Pengujian
+
+Jumlah Test Case Pass
+
+Fail
+
+Functional Testing
+
+Validation Testing
+
+UI Testing
+
+Integration Testing
+
+Blocked
+
+Nama Proyek: ____________________ | Versi: ____ | Tanggal: ____
+
+Persentase Lulus
+
+Regression Testing User Acceptance Test Total
+
+Template Dokumen Uji Perangkat Lunak dan UAT
+
+11.1 Kesimpulan Pengujian
+ Aplikasi dinyatakan layak digunakan apabila seluruh fitur prioritas tinggi berstatus Pass dan tidak terdapat bug critical/high yang terbuka.
+ Apabila masih terdapat bug minor, aplikasi dapat diterima dengan catatan selama tidak menghambat proses bisnis utama.
+ Setelah perbaikan bug, regression testing wajib dilakukan untuk memastikan tidak ada dampak ke fitur lain.
+
+11.2 Rekomendasi
+ Perbaiki seluruh bug berstatus Open sesuai prioritas.  Lakukan pengujian ulang pada fitur terdampak setelah perbaikan.  Tambahkan automated testing untuk fitur yang sering berubah.  Dokumentasikan semua perubahan requirement dan hasil UAT.
+
+12. Persetujuan
+
+Peran Penguji / QA Developer Project Manager User / Stakeholder Dosen Pembimbing / Reviewer
+
+Nama
+
+Tanda Tangan
+
+Tanggal
+
+Catatan final: Dokumen ini merupakan template. Sesuaikan modul, skenario, data uji, dan kriteria penerimaan dengan sistem yang diuji.
+
+Nama Proyek: ____________________ | Versi: ____ | Tanggal: ____
+
+

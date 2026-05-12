@@ -1,14 +1,17 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"time"
 
 	"jr-konveksi/config"
 	"jr-konveksi/models"
 	controllers "jr-konveksi/models/Controller"
+	"jr-konveksi/utils"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -99,11 +102,23 @@ func main() {
 		api.POST("/user", controllers.CreateUser)
 		api.PUT("/user/:id", controllers.UpdateUser)
 		api.DELETE("/user/:id", controllers.DeleteUser)
+		api.POST("/auth/login", controllers.LoginUser)
+		api.POST("/auth/change-password", controllers.ChangePassword)
 
 		// LOG KERJA
 		api.GET("/log", controllers.GetLog)
 		api.POST("/log", controllers.CreateLog)
+		api.DELETE("/log", controllers.ClearLog)
 		api.DELETE("/log/:id", controllers.DeleteLog)
+
+		// RESEED DATA (DEV ONLY)
+		api.POST("/reseed", func(c *gin.Context) {
+			if err := reseedDatabase(); err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(200, gin.H{"message": "Reseed selesai"})
+		})
 
 	}
 
@@ -152,21 +167,58 @@ func seedInitialData() {
 
 	var userCount int64
 	config.DB.Model(&models.User{}).Count(&userCount)
+	defaultPassword, err := utils.HashPassword("konveksi123")
+	if err != nil {
+		log.Println("Seed skipped: gagal hash password")
+		return
+	}
 	if userCount == 0 {
-		config.DB.Create(&models.User{IDCabang: firstCabang.IDCabang, Nama: "Sutianto", Role: "owner"})
-		config.DB.Create(&models.User{IDCabang: firstCabang.IDCabang, Nama: "Admin Konveksi", Role: "admin"})
-		config.DB.Create(&models.User{IDCabang: firstCabang.IDCabang, Nama: "Operator 1", Role: "karyawan"})
+		config.DB.Create(&models.User{IDCabang: firstCabang.IDCabang, Nama: "Sutianto", Role: "owner", PasswordHash: defaultPassword})
+		config.DB.Create(&models.User{IDCabang: firstCabang.IDCabang, Nama: "Admin Konveksi", Role: "admin", PasswordHash: defaultPassword})
+		config.DB.Create(&models.User{IDCabang: firstCabang.IDCabang, Nama: "Operator 1", Role: "karyawan", PasswordHash: defaultPassword})
+	} else {
+		config.DB.Model(&models.User{}).
+			Where("password_hash = '' OR password_hash IS NULL").
+			Update("password_hash", defaultPassword)
 	}
 
 	var supplierCount int64
 	config.DB.Model(&models.Supplier{}).Count(&supplierCount)
 	if supplierCount == 0 {
 		config.DB.Create(&models.Supplier{
-			NamaSupplier:   "PT Tekstil Nusantara",
-			Alamat:         "Jl. Industri 1",
-			NoHP:           "081234567890",
-			Email:          "cs@tekstilnusantara.id",
-			NamaPerusahaan: "Tekstil Nusantara",
+			NamaSupplier:   "Disediakan Klien",
+			Alamat:         "-",
+			NoHP:           "-",
+			Email:          "-",
+			NamaPerusahaan: "Klien",
+		})
+		config.DB.Create(&models.Supplier{
+			NamaSupplier:   "Disediakan Konveksi",
+			Alamat:         "-",
+			NoHP:           "-",
+			Email:          "-",
+			NamaPerusahaan: "JR Konveksi",
+		})
+	}
+
+	var supplierOptionCount int64
+	config.DB.Model(&models.Supplier{}).
+		Where("nama_supplier IN ?", []string{"Disediakan Klien", "Disediakan Konveksi"}).
+		Count(&supplierOptionCount)
+	if supplierOptionCount < 2 {
+		config.DB.FirstOrCreate(&models.Supplier{NamaSupplier: "Disediakan Klien"}, &models.Supplier{
+			NamaSupplier:   "Disediakan Klien",
+			Alamat:         "-",
+			NoHP:           "-",
+			Email:          "-",
+			NamaPerusahaan: "Klien",
+		})
+		config.DB.FirstOrCreate(&models.Supplier{NamaSupplier: "Disediakan Konveksi"}, &models.Supplier{
+			NamaSupplier:   "Disediakan Konveksi",
+			Alamat:         "-",
+			NoHP:           "-",
+			Email:          "-",
+			NamaPerusahaan: "JR Konveksi",
 		})
 	}
 
@@ -223,4 +275,44 @@ func seedInitialData() {
 	}
 
 	log.Println("Seed check completed")
+}
+
+// reseedDatabase menghapus seluruh data lalu mengisi ulang seed.
+// Gunakan hanya untuk kebutuhan demo/testing.
+func reseedDatabase() error {
+	if config.DB == nil {
+		return errors.New("database belum terkoneksi")
+	}
+
+	deleteAll := func(model interface{}) error {
+		return config.DB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(model).Error
+	}
+
+	if err := deleteAll(&models.LogKerjaKaryawan{}); err != nil {
+		return err
+	}
+	if err := deleteAll(&models.DetailKebutuhanBahan{}); err != nil {
+		return err
+	}
+	if err := deleteAll(&models.AlokasiProduksi{}); err != nil {
+		return err
+	}
+	if err := deleteAll(&models.PesananGlobal{}); err != nil {
+		return err
+	}
+	if err := deleteAll(&models.BahanBaku{}); err != nil {
+		return err
+	}
+	if err := deleteAll(&models.Supplier{}); err != nil {
+		return err
+	}
+	if err := deleteAll(&models.User{}); err != nil {
+		return err
+	}
+	if err := deleteAll(&models.Cabang{}); err != nil {
+		return err
+	}
+
+	seedInitialData()
+	return nil
 }

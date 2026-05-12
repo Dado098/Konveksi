@@ -1,18 +1,38 @@
 import { Bell, BookText, Boxes, ClipboardList, Gauge, History, LogOut, PackageOpen, Search } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/useAuth'
+import { confirmDanger, showSuccess } from '../utils/alerts'
 
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: Gauge },
-  { to: '/stok', label: 'Manajemen Stok', icon: Boxes },
-  { to: '/pesanan', label: 'Pesanan', icon: PackageOpen },
-  { to: '/laporan', label: 'Laporan', icon: BookText },
-  { to: '/riwayat', label: 'Riwayat', icon: History },
-]
+const navItems = {
+  owner: [
+    { to: '/dashboard', label: 'Dashboard', icon: Gauge },
+    { to: '/stok', label: 'Manajemen Stok', icon: Boxes },
+    { to: '/pesanan', label: 'Pesanan', icon: PackageOpen },
+    { to: '/laporan', label: 'Laporan', icon: BookText },
+    { to: '/riwayat', label: 'Riwayat', icon: History },
+  ],
+  karyawan: [
+    { to: '/dashboard', label: 'Dashboard', icon: Gauge },
+    { to: '/pesanan', label: 'Pesanan', icon: PackageOpen },
+  ],
+}
+
+const normalizeRole = (role?: string) => (role === 'admin' ? 'karyawan' : role)
 
 export const Layout = () => {
   // user dan logout berasal dari AuthContext
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const normalizedRole = normalizeRole(user?.role)
+  const visibleNav = normalizedRole === 'owner' ? navItems.owner : navItems.karyawan
+  const roleLabel = normalizedRole === 'karyawan' ? 'karyawan' : user?.role
+
+  const handleLogout = async () => {
+    const confirmed = await confirmDanger('Logout?', 'Anda akan keluar dari sistem.')
+    if (!confirmed) return
+    logout()
+    await showSuccess('Logout berhasil')
+  }
 
   return (
     <div className="app-shell">
@@ -25,7 +45,7 @@ export const Layout = () => {
 
         <nav className="side-nav">
           {/* Menu utama dashboard */}
-          {navItems.map((item) => {
+          {visibleNav.map((item) => {
             const Icon = item.icon
             return (
               <NavLink
@@ -40,7 +60,7 @@ export const Layout = () => {
           })}
         </nav>
 
-        <button type="button" className="logout-link" onClick={logout}>
+        <button type="button" className="logout-link" onClick={() => void handleLogout()}>
           <LogOut size={18} />
           <span>Logout</span>
         </button>
@@ -55,11 +75,11 @@ export const Layout = () => {
           </div>
           <div className="top-actions">
             <Bell size={18} />
-            <div className="user-box">
+            <div className="user-box" role="button" tabIndex={0} onClick={() => navigate('/profil')} onKeyDown={(event) => { if (event.key === 'Enter') navigate('/profil') }}>
               <div className="avatar">{user?.nama[0]?.toUpperCase() ?? 'U'}</div>
               <div>
                 <strong>{user?.nama}</strong>
-                <p>{user?.role}</p>
+                <p>{roleLabel}</p>
               </div>
               <ClipboardList size={16} />
             </div>

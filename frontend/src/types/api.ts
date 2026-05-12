@@ -28,6 +28,9 @@ export interface Pesanan {
   id_pesanan: number
   nama_pesanan: string
   total_qty: number
+  harga_flat: number
+  total_harga?: number
+  bayar: number
   tgl_deadline: string
   status_global: string
 }
@@ -54,10 +57,22 @@ export interface User {
   role: Role
 }
 
+export interface AuthLoginRequest {
+  nama: string
+  password: string
+}
+
+export interface ChangePasswordRequest {
+  id_user: number
+  current_password: string
+  new_password: string
+}
+
 export interface LogKerja {
   id_log: number
   id_alokasi: number
   id_user: number
+  id_cabang: number
   tahapan: string
   waktu_update: string
 }

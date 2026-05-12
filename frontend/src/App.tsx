@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage'
 import { OrderDetailPage } from './pages/OrderDetailPage'
 import { OrderFormPage } from './pages/OrderFormPage'
 import { OrdersPage } from './pages/OrdersPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { ReportsPage } from './pages/ReportsPage'
 import { StockPage } from './pages/StockPage'
 
@@ -24,12 +25,41 @@ function App() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="stok" element={<StockPage />} />
+        <Route
+          path="stok"
+          element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <StockPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="pesanan" element={<OrdersPage />} />
-        <Route path="pesanan/new" element={<OrderFormPage />} />
+        <Route
+          path="pesanan/new"
+          element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <OrderFormPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="pesanan/:id" element={<OrderDetailPage />} />
-        <Route path="laporan" element={<ReportsPage />} />
-        <Route path="riwayat" element={<HistoryPage />} />
+        <Route
+          path="laporan"
+          element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <ReportsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="riwayat"
+          element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="profil" element={<ProfilePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

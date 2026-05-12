@@ -1,7 +1,9 @@
 import type {
     AlokasiProduksi,
+    AuthLoginRequest,
     BahanBaku,
     Cabang,
+    ChangePasswordRequest,
     DetailKebutuhanBahan,
     LogKerja,
     Pesanan,
@@ -69,10 +71,18 @@ export const api = {
     const { data } = await apiClient.get<AlokasiProduksi[]>('/alokasi')
     return data
   },
+  createAlokasi: async (payload: Omit<AlokasiProduksi, 'id_alokasi'>) => {
+    const { data } = await apiClient.post<AlokasiProduksi>('/alokasi', payload)
+    return data
+  },
 
   // DETAIL KEBUTUHAN BAHAN
   getDetailBahan: async () => {
     const { data } = await apiClient.get<DetailKebutuhanBahan[]>('/detail_kebutuhan_bahan')
+    return data
+  },
+  createDetailBahan: async (payload: Omit<DetailKebutuhanBahan, 'id_detail'>) => {
+    const { data } = await apiClient.post<DetailKebutuhanBahan>('/detail_kebutuhan_bahan', payload)
     return data
   },
 
@@ -82,9 +92,26 @@ export const api = {
     return data
   },
 
+  // AUTH
+  login: async (payload: AuthLoginRequest) => {
+    const { data } = await apiClient.post<User>('/auth/login', payload)
+    return data
+  },
+  changePassword: async (payload: ChangePasswordRequest) => {
+    const { data } = await apiClient.post<User>('/auth/change-password', payload)
+    return data
+  },
+
   // LOG AKTIVITAS
   getLog: async () => {
     const { data } = await apiClient.get<LogKerja[]>('/log')
+    return data
+  },
+  clearLog: async () => {
+    await apiClient.delete('/log')
+  },
+  createLog: async (payload: Omit<LogKerja, 'id_log' | 'waktu_update'>) => {
+    const { data } = await apiClient.post<LogKerja>('/log', payload)
     return data
   },
 }

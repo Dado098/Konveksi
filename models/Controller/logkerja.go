@@ -8,6 +8,7 @@ import (
 	"jr-konveksi/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // GetLog mengembalikan log kerja karyawan.
@@ -47,4 +48,15 @@ func DeleteLog(c *gin.Context) {
 	config.DB.Delete(&data)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Deleted"})
+}
+
+// ClearLog menghapus seluruh log kerja.
+// Endpoint: DELETE /api/log
+func ClearLog(c *gin.Context) {
+	if err := config.DB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&models.LogKerjaKaryawan{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Cleared"})
 }

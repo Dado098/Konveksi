@@ -1,10 +1,12 @@
-import { Plus } from 'lucide-react'
+import { Download, Plus } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { parseApiError } from '../api/client'
 import { api } from '../api/services'
 import { Card, Modal, StatusPill } from '../components/UI'
+import { useAuth } from '../context/useAuth'
 import type { BahanBaku, Cabang, Supplier } from '../types/api'
+import { confirmDanger, showError, showSuccess } from '../utils/alerts'
 
 interface BahanForm {
   nama_bahan: string
@@ -31,6 +33,7 @@ export const StockPage = () => {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<BahanBaku | null>(null)
   const [form, setForm] = useState<BahanForm>(initialForm)
+  const { user } = useAuth()
 
   // loadData mengambil data master yang dipakai pada tabel dan dropdown
   const loadData = useCallback(async () => {
@@ -50,7 +53,11 @@ export const StockPage = () => {
   }, [])
 
   useEffect(() => {
-    void loadData()
+    const timer = window.setTimeout(() => {
+      void loadData()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [loadData])
 
   // openCreate menyiapkan form kosong untuk tambah bahan
@@ -59,7 +66,7 @@ export const StockPage = () => {
     setForm({
       ...initialForm,
       id_cabang: cabang[0]?.id_cabang ?? 1,
-      id_supplier: supplier[0]?.id_supplier ?? 1,
+      id_supplier: supplierOptions[0]?.id_supplier ?? 1,
     })
     setOpen(true)
   }
@@ -81,47 +88,159 @@ export const StockPage = () => {
   const submit = async (event: FormEvent) => {
     event.preventDefault()
 
-    if (!form.nama_bahan.trim()) {
-      setError('Nama bahan wajib diisi')
+    const trimmedName = form.nama_bahan.trim()
+    const stokAktual = Number(form.stok_aktual)
+    const batasMinimum = Number(form.batas_minimum)
+
+    if (!trimmedName) {
+      const message = 'Nama bahan wajib diisi'
+      setError(message)
+      await showError('Validasi gagal', message)
       return
     }
 
-    if (form.stok_aktual < 0) {
-      setError('Stok tidak boleh negatif')
+    if (trimmedName.length < 2 || trimmedName.length > 80) {
+      const message = 'Nama bahan harus 2-80 karakter'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
+
+    if (!Number.isFinite(stokAktual) || stokAktual < 0) {
+      const message = 'Stok tidak boleh negatif'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
+
+    if (!Number.isFinite(batasMinimum) || batasMinimum < 0) {
+      const message = 'Batas minimum tidak boleh negatif'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
+
+    if (!form.id_cabang || form.id_cabang < 1) {
+      const message = 'Cabang harus dipilih'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
+
+    if (!form.id_supplier || form.id_supplier < 1) {
+      const message = 'Supplier harus dipilih'
+      setError(message)
+      await showError('Validasi gagal', message)
       return
     }
 
     try {
       if (editing) {
-        await api.updateBahan(editing.id_bahan, form)
+        await api.updateBahan(editing.id_bahan, {
+          ...form,
+          nama_bahan: trimmedName,
+          stok_aktual: stokAktual,
+          batas_minimum: batasMinimum,
+        })
+        await showSuccess('Perubahan disimpan', 'Data bahan berhasil diperbarui.')
+        if (user) {
+          await api.createLog({
+            id_user: user.id_user,
+            id_alokasi: 0,
+            id_cabang: form.id_cabang,
+            tahapan: `Update bahan: ${form.nama_bahan}`,
+          })
+        }
       } else {
-        await api.createBahan(form)
+        await api.createBahan({
+          ...form,
+          nama_bahan: trimmedName,
+          stok_aktual: stokAktual,
+          batas_minimum: batasMinimum,
+        })
+        await showSuccess('Data tersimpan', 'Bahan baru berhasil ditambahkan.')
+        if (user) {
+          await api.createLog({
+            id_user: user.id_user,
+            id_alokasi: 0,
+            id_cabang: form.id_cabang,
+            tahapan: `Tambah bahan: ${form.nama_bahan}`,
+          })
+        }
       }
       setOpen(false)
       setForm(initialForm)
       await loadData()
     } catch (submitError) {
-      setError(parseApiError(submitError))
+      const message = parseApiError(submitError)
+      setError(message)
+      await showError('Gagal menyimpan', message)
     }
   }
 
   // remove menghapus bahan berdasarkan id
-  const remove = async (id: number) => {
+  const remove = async (id: number, cabangId: number) => {
     try {
+      const confirmed = await confirmDanger('Hapus bahan?', 'Data yang dihapus tidak bisa dikembalikan.')
+      if (!confirmed) return
       await api.deleteBahan(id)
       await loadData()
+      await showSuccess('Data dihapus', 'Bahan berhasil dihapus.')
+      if (user) {
+        await api.createLog({
+          id_user: user.id_user,
+          id_alokasi: 0,
+          id_cabang: cabangId,
+          tahapan: `Hapus bahan #${id}`,
+        })
+      }
     } catch (deleteError) {
-      setError(parseApiError(deleteError))
+      const message = parseApiError(deleteError)
+      setError(message)
+      await showError('Gagal menghapus', message)
     }
   }
 
   // rowData menambahkan status label berdasarkan stok vs batas minimum
   const rowData = useMemo(() => {
+    const cabangMap = new Map(cabang.map((item) => [item.id_cabang, item.nama_cabang]))
     return bahan.map((item) => ({
       ...item,
+      cabangLabel: cabangMap.get(item.id_cabang) ?? `Cabang ${item.id_cabang}`,
       status: item.stok_aktual <= 0 ? 'Habis' : item.stok_aktual <= item.batas_minimum ? 'Menipis' : 'Aman',
     }))
-  }, [bahan])
+  }, [bahan, cabang])
+
+  const exportedCsv = useMemo(() => {
+    const rows = [
+      ['nama_bahan', 'stok_aktual', 'batas_minimum', 'cabang', 'status'],
+      ...rowData.map((item) => [
+        item.nama_bahan,
+        String(item.stok_aktual),
+        String(item.batas_minimum),
+        item.cabangLabel,
+        item.status,
+      ]),
+    ]
+
+    return rows.map((row) => row.join(',')).join('\n')
+  }, [rowData])
+
+  const downloadCsv = () => {
+    const blob = new Blob([exportedCsv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'laporan-stok.csv'
+    anchor.click()
+    URL.revokeObjectURL(url)
+    void showSuccess('Export berhasil', 'Laporan stok berhasil diunduh.')
+  }
+
+  const supplierOptions = useMemo(() => {
+    const allowed = new Set(['Disediakan Klien', 'Disediakan Konveksi'])
+    return supplier.filter((item) => allowed.has(item.nama_supplier))
+  }, [supplier])
 
   return (
     <section className="page-grid">
@@ -130,10 +249,15 @@ export const StockPage = () => {
           <h1>Manajemen Stok</h1>
           <p>Dashboard / Manajemen Stok</p>
         </div>
-        <button className="primary-btn" type="button" onClick={openCreate}>
-          <Plus size={16} />
-          Tambah
-        </button>
+        <div className="row-end">
+          <button type="button" className="ghost-btn" onClick={downloadCsv}>
+            <Download size={16} /> Export
+          </button>
+          <button className="primary-btn" type="button" onClick={openCreate}>
+            <Plus size={16} />
+            Tambah
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-box">{error}</div>}
@@ -159,7 +283,7 @@ export const StockPage = () => {
                   <td>{item.nama_bahan}</td>
                   <td>{item.stok_aktual}</td>
                   <td>{item.batas_minimum}</td>
-                  <td>{item.id_cabang}</td>
+                  <td>{item.cabangLabel}</td>
                   <td>
                     <StatusPill status={item.status} />
                   </td>
@@ -168,7 +292,11 @@ export const StockPage = () => {
                       <button type="button" className="outline-btn" onClick={() => openEdit(item)}>
                         Edit
                       </button>
-                      <button type="button" className="outline-btn danger" onClick={() => void remove(item.id_bahan)}>
+                      <button
+                        type="button"
+                        className="outline-btn danger"
+                        onClick={() => void remove(item.id_bahan, item.id_cabang)}
+                      >
                         Hapus
                       </button>
                     </div>
@@ -233,13 +361,13 @@ export const StockPage = () => {
             ))}
           </select>
 
-          <label htmlFor="id_supplier">Supplier</label>
+          <label htmlFor="id_supplier">Sumber Bahan</label>
           <select
             id="id_supplier"
             value={form.id_supplier}
             onChange={(event) => setForm((current) => ({ ...current, id_supplier: Number(event.target.value) }))}
           >
-            {supplier.map((item) => (
+            {supplierOptions.map((item) => (
               <option key={item.id_supplier} value={item.id_supplier}>
                 {item.nama_supplier}
               </option>

@@ -5,4 +5,5 @@ type User struct {
 	IDCabang uint   `json:"id_cabang"`
 	Nama     string `json:"nama"`
 	Role     string `json:"role"`
+	PasswordHash string `json:"-"`
 }

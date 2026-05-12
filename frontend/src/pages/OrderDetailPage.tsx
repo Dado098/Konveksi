@@ -4,7 +4,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { parseApiError } from '../api/client'
 import { api } from '../api/services'
 import { Card, StatusPill } from '../components/UI'
-import type { AlokasiProduksi, Pesanan } from '../types/api'
+import { useAuth } from '../context/useAuth'
+import type { AlokasiProduksi, BahanBaku, DetailKebutuhanBahan, Pesanan } from '../types/api'
+import { confirmDanger, showError, showSuccess } from '../utils/alerts'
 import { formatDate, formatNumber, toInputDateValue } from '../utils/format'
 
 export const OrderDetailPage = () => {
@@ -14,18 +16,34 @@ export const OrderDetailPage = () => {
   // order dan alokasi menampung data pesanan serta alokasi terkait
   const [order, setOrder] = useState<Pesanan | null>(null)
   const [alokasi, setAlokasi] = useState<AlokasiProduksi[]>([])
+  const [detailBahan, setDetailBahan] = useState<DetailKebutuhanBahan[]>([])
+  const [bahan, setBahan] = useState<BahanBaku[]>([])
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cabangNames, setCabangNames] = useState<Map<number, string>>(new Map())
+  const { user } = useAuth()
 
   const orderId = Number(id)
 
   // fetchData memuat detail pesanan + alokasi untuk halaman ini
   const fetchData = useCallback(async () => {
     try {
-      const [orders, allocation] = await Promise.all([api.getPesanan(), api.getAlokasi()])
+      const [orders, allocation, cabang, detail, bahanData] = await Promise.all([
+        api.getPesanan(),
+        api.getAlokasi(),
+        api.getCabang(),
+        api.getDetailBahan(),
+        api.getBahan(),
+      ])
       const selectedOrder = orders.find((item) => item.id_pesanan === orderId) ?? null
-      setOrder(selectedOrder)
+      const normalizedOrder = selectedOrder
+        ? { ...selectedOrder, harga_flat: selectedOrder.harga_flat || selectedOrder.total_harga || 0 }
+        : null
+      setOrder(normalizedOrder)
       setAlokasi(allocation.filter((item) => item.id_pesanan === orderId))
+      setDetailBahan(detail)
+      setBahan(bahanData)
+      setCabangNames(new Map(cabang.map((item) => [item.id_cabang, item.nama_cabang])))
       setError(null)
     } catch (fetchError) {
       setError(parseApiError(fetchError))
@@ -33,7 +51,11 @@ export const OrderDetailPage = () => {
   }, [orderId])
 
   useEffect(() => {
-    void fetchData()
+    const timer = window.setTimeout(() => {
+      void fetchData()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [fetchData])
 
   // deleteOrder menghapus pesanan lalu kembali ke daftar
@@ -41,10 +63,24 @@ export const OrderDetailPage = () => {
     if (!order) return
 
     try {
+      const confirmed = await confirmDanger('Hapus pesanan?', 'Pesanan akan terhapus permanen.')
+      if (!confirmed) return
       await api.deletePesanan(order.id_pesanan)
+      await showSuccess('Pesanan dihapus', 'Data pesanan berhasil dihapus.')
+      if (user) {
+        const firstAllocation = alokasi[0]
+        await api.createLog({
+          id_user: user.id_user,
+          id_alokasi: firstAllocation?.id_alokasi ?? 0,
+          id_cabang: firstAllocation?.id_cabang ?? 0,
+          tahapan: `Hapus pesanan: ${order.nama_pesanan}`,
+        })
+      }
       navigate('/pesanan')
     } catch (deleteError) {
-      setError(parseApiError(deleteError))
+      const message = parseApiError(deleteError)
+      setError(message)
+      await showError('Gagal menghapus', message)
     }
   }
 
@@ -52,6 +88,12 @@ export const OrderDetailPage = () => {
   const totalAlokasi = useMemo(() => {
     return alokasi.reduce((accumulator, item) => accumulator + item.qty_alokasi, 0)
   }, [alokasi])
+
+  const bahanMap = useMemo(() => new Map(bahan.map((item) => [item.id_bahan, item.nama_bahan])), [bahan])
+  const detailRows = useMemo(() => {
+    const alokasiIds = new Set(alokasi.map((item) => item.id_alokasi))
+    return detailBahan.filter((item) => alokasiIds.has(item.id_alokasi))
+  }, [detailBahan, alokasi])
 
   // exportDetail mengunduh CSV detail alokasi pesanan
   const exportDetail = () => {
@@ -72,23 +114,86 @@ export const OrderDetailPage = () => {
     anchor.download = `detail-pesanan-${orderId}.csv`
     anchor.click()
     URL.revokeObjectURL(url)
+    void showSuccess('Export berhasil', 'Detail pesanan berhasil diunduh.')
   }
 
   // submitEdit mengirim perubahan data pesanan ke backend
   const submitEdit = async () => {
     if (!order) return
 
+    const trimmedName = order.nama_pesanan.trim()
+    const totalQty = Number.isFinite(order.total_qty) ? Math.floor(order.total_qty) : 0
+    const bayarValue = Number.isFinite(order.bayar) ? order.bayar : 0
+    const hargaFlatValue = Number.isFinite(order.harga_flat) ? order.harga_flat : 0
+    const deadlineDate = new Date(order.tgl_deadline)
+
+    if (!trimmedName) {
+      const message = 'Nama pemesan wajib diisi'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
+
+    if (trimmedName.length < 2 || trimmedName.length > 80) {
+      const message = 'Nama pemesan harus 2-80 karakter'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
+
+    if (totalQty <= 0) {
+      const message = 'Jumlah harus lebih dari 0'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
+
+    if (hargaFlatValue <= 0) {
+      const message = 'Harga flat harus lebih dari 0'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
+
+    if (bayarValue < 0) {
+      const message = 'Bayar tidak boleh negatif'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
+
+    if (Number.isNaN(deadlineDate.getTime())) {
+      const message = 'Deadline tidak valid'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
+
     try {
       await api.updatePesanan(order.id_pesanan, {
-        nama_pesanan: order.nama_pesanan,
-        total_qty: order.total_qty,
+        nama_pesanan: trimmedName,
+        total_qty: totalQty,
+        harga_flat: hargaFlatValue,
+        bayar: bayarValue,
         status_global: order.status_global,
-        tgl_deadline: new Date(order.tgl_deadline).toISOString(),
+        tgl_deadline: deadlineDate.toISOString(),
       })
       setEditing(false)
       await fetchData()
+      await showSuccess('Perubahan disimpan', 'Detail pesanan berhasil diperbarui.')
+      if (user) {
+        const firstAllocation = alokasi[0]
+        await api.createLog({
+          id_user: user.id_user,
+          id_alokasi: firstAllocation?.id_alokasi ?? 0,
+          id_cabang: firstAllocation?.id_cabang ?? 0,
+          tahapan: `Update pesanan: ${order.nama_pesanan}`,
+        })
+      }
     } catch (updateError) {
-      setError(parseApiError(updateError))
+      const message = parseApiError(updateError)
+      setError(message)
+      await showError('Gagal menyimpan', message)
     }
   }
 
@@ -137,16 +242,49 @@ export const OrderDetailPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {alokasi.map((item) => (
-                  <tr key={item.id_alokasi}>
-                    <td>#{item.id_alokasi}</td>
-                    <td>{item.id_cabang}</td>
-                    <td>{formatNumber(item.qty_alokasi)}</td>
-                    <td>
-                      <StatusPill status={item.status_lokal} />
-                    </td>
+                {alokasi.length === 0 ? (
+                  <tr>
+                    <td colSpan={4}>Belum ada alokasi untuk pesanan ini.</td>
                   </tr>
-                ))}
+                ) : (
+                  alokasi.map((item) => (
+                    <tr key={item.id_alokasi}>
+                      <td>#{item.id_alokasi}</td>
+                      <td>{cabangNames.get(item.id_cabang) ?? `Cabang ${item.id_cabang}`}</td>
+                      <td>{formatNumber(item.qty_alokasi)}</td>
+                      <td>
+                        <StatusPill status={item.status_lokal} />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <Card title="Kebutuhan Bahan">
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bahan</th>
+                  <th>Qty per Pcs</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detailRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={2}>Belum ada kebutuhan bahan untuk pesanan ini.</td>
+                  </tr>
+                ) : (
+                  detailRows.map((item) => (
+                    <tr key={item.id_detail}>
+                      <td>{bahanMap.get(item.id_bahan) ?? `Bahan #${item.id_bahan}`}</td>
+                      <td>{item.qty_bahan_per_pcs}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -198,6 +336,22 @@ export const OrderDetailPage = () => {
               )}
             </div>
             <div>
+              <span>Harga Flat</span>
+              {editing ? (
+                <input
+                  type="number"
+                  min={1}
+                  step={100}
+                  value={order.harga_flat}
+                  onChange={(event) =>
+                    setOrder((current) => (current ? { ...current, harga_flat: Number(event.target.value) } : null))
+                  }
+                />
+              ) : (
+                <strong>Rp{formatNumber(order.harga_flat ?? 0)}</strong>
+              )}
+            </div>
+            <div>
               <span>Total Alokasi</span>
               <strong>{formatNumber(totalAlokasi)}</strong>
             </div>
@@ -207,15 +361,41 @@ export const OrderDetailPage = () => {
                 <select
                   value={order.status_global}
                   onChange={(event) =>
-                    setOrder((current) => (current ? { ...current, status_global: event.target.value } : null))
+                    setOrder((current) => {
+                      if (!current) return null
+                      const nextStatus = event.target.value
+                      return {
+                        ...current,
+                        status_global: nextStatus,
+                        bayar: nextStatus === 'Batal' ? 0 : current.bayar,
+                      }
+                    })
                   }
                 >
                   <option value="Menunggu">Menunggu</option>
                   <option value="Proses">Proses</option>
                   <option value="Selesai">Selesai</option>
+                  <option value="Batal">Batal</option>
                 </select>
               ) : (
                 <StatusPill status={order.status_global} />
+              )}
+            </div>
+            <div>
+              <span>Bayar</span>
+              {editing ? (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={formatNumber(order.bayar ?? 0)}
+                  onChange={(event) => {
+                    const raw = event.target.value.replace(/[^0-9]/g, '')
+                    const numeric = raw ? Number(raw) : 0
+                    setOrder((current) => (current ? { ...current, bayar: numeric } : null))
+                  }}
+                />
+              ) : (
+                <strong>Rp{formatNumber(order.bayar ?? 0)}</strong>
               )}
             </div>
           </div>
