@@ -39,6 +39,11 @@ export const ProfilePage = () => {
       return
     }
 
+    if (trimmedNew === trimmedCurrent) {
+      await showError('Validasi gagal', 'Password baru tidak boleh sama dengan password lama.')
+      return
+    }
+
     try {
       setLoading(true)
       await api.changePassword({

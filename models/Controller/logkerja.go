@@ -29,7 +29,10 @@ func CreateLog(c *gin.Context) {
 		return
 	}
 
-	config.DB.Create(&input)
+	if err := config.DB.Create(&input).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, input)
 }
 

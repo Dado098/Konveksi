@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"log"
-	"time"
 
 	"jr-konveksi/config"
 	"jr-konveksi/models"
@@ -25,6 +24,8 @@ func main() {
 	}
 
 	log.Println("Starting AutoMigrate...")
+	config.DB.DisableForeignKeyConstraintWhenMigrating = true
+	fixInvalidConstraints()
 
 	// 2) Auto migration agar struktur tabel sinkron dengan model terbaru
 	err := config.DB.AutoMigrate(
@@ -41,6 +42,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Migration Failed:", err)
 	}
+	ensurePesananAlokasiFK()
+	ensureDetailAlokasiFK()
+	ensureLogAlokasiFK()
 
 	log.Println("Migration Success")
 
@@ -104,6 +108,14 @@ func main() {
 		api.DELETE("/user/:id", controllers.DeleteUser)
 		api.POST("/auth/login", controllers.LoginUser)
 		api.POST("/auth/change-password", controllers.ChangePassword)
+		api.POST("/auth/reset-all-passwords", controllers.ResetAllPasswords)
+		api.POST("/reseed-users", func(c *gin.Context) {
+			if err := reseedUsers(); err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(200, gin.H{"message": "Reseed user selesai"})
+		})
 
 		// LOG KERJA
 		api.GET("/log", controllers.GetLog)
@@ -123,6 +135,141 @@ func main() {
 	}
 
 	r.Run(":3000")
+}
+
+// fixInvalidConstraints membersihkan constraint yang salah arah dari migrasi lama.
+func fixInvalidConstraints() {
+	if config.DB == nil {
+		return
+	}
+
+	const invalidPesananConstraint = "fk_alokasi_produksis_pesanan"
+	const invalidDetailConstraint = "fk_detail_kebutuhan_bahans_alokasi"
+	const invalidLogConstraint = "fk_log_kerja_karyawans_alokasi"
+	const lookupSQL = `
+		SELECT CONSTRAINT_NAME, TABLE_NAME
+		FROM information_schema.REFERENTIAL_CONSTRAINTS
+		WHERE CONSTRAINT_SCHEMA = DATABASE()
+		AND (
+			(CONSTRAINT_NAME = ?)
+			OR (TABLE_NAME = 'pesanan_globals' AND REFERENCED_TABLE_NAME = 'alokasi_produksis')
+			OR (TABLE_NAME = 'alokasi_produksis' AND REFERENCED_TABLE_NAME = 'detail_kebutuhan_bahans')
+			OR (TABLE_NAME = 'alokasi_produksis' AND REFERENCED_TABLE_NAME = 'log_kerja_karyawans')
+		)
+	`
+
+	type fkRow struct {
+		ConstraintName string `gorm:"column:CONSTRAINT_NAME"`
+		TableName      string `gorm:"column:TABLE_NAME"`
+	}
+
+	var rows []fkRow
+	if err := config.DB.Raw(lookupSQL, invalidPesananConstraint).Scan(&rows).Error; err != nil {
+		log.Println("Lookup FK gagal:", err)
+		return
+	}
+
+	for _, row := range rows {
+		dropSQL := "ALTER TABLE " + row.TableName + " DROP FOREIGN KEY " + row.ConstraintName
+		if err := config.DB.Exec(dropSQL).Error; err != nil {
+			log.Println("Drop FK gagal:", err)
+			continue
+		}
+		log.Println("Drop FK:", row.ConstraintName, "on", row.TableName)
+	}
+
+	var detailRows []fkRow
+	if err := config.DB.Raw(lookupSQL, invalidDetailConstraint).Scan(&detailRows).Error; err != nil {
+		log.Println("Lookup FK gagal:", err)
+		return
+	}
+
+	for _, row := range detailRows {
+		dropSQL := "ALTER TABLE " + row.TableName + " DROP FOREIGN KEY " + row.ConstraintName
+		if err := config.DB.Exec(dropSQL).Error; err != nil {
+			log.Println("Drop FK gagal:", err)
+			continue
+		}
+		log.Println("Drop FK:", row.ConstraintName, "on", row.TableName)
+	}
+
+	var logRows []fkRow
+	if err := config.DB.Raw(lookupSQL, invalidLogConstraint).Scan(&logRows).Error; err != nil {
+		log.Println("Lookup FK gagal:", err)
+		return
+	}
+
+	for _, row := range logRows {
+		dropSQL := "ALTER TABLE " + row.TableName + " DROP FOREIGN KEY " + row.ConstraintName
+		if err := config.DB.Exec(dropSQL).Error; err != nil {
+			log.Println("Drop FK gagal:", err)
+			continue
+		}
+		log.Println("Drop FK:", row.ConstraintName, "on", row.TableName)
+	}
+}
+
+// ensurePesananAlokasiFK memastikan FK yang benar ada di alokasi_produksis.
+func ensurePesananAlokasiFK() {
+	if config.DB == nil {
+		return
+	}
+
+	migrator := config.DB.Migrator()
+	const fkName = "fk_alokasi_produksis_pesanan"
+	if migrator.HasConstraint(&models.AlokasiProduksi{}, fkName) {
+		return
+	}
+
+	addSQL := "ALTER TABLE alokasi_produksis ADD CONSTRAINT " + fkName +
+		" FOREIGN KEY (id_pesanan) REFERENCES pesanan_globals(id_pesanan) ON DELETE CASCADE"
+	if err := config.DB.Exec(addSQL).Error; err != nil {
+		log.Println("Add FK gagal:", err)
+		return
+	}
+	log.Println("Add FK:", fkName)
+}
+
+// ensureDetailAlokasiFK memastikan FK detail_kebutuhan_bahans -> alokasi_produksis.
+func ensureDetailAlokasiFK() {
+	if config.DB == nil {
+		return
+	}
+
+	migrator := config.DB.Migrator()
+	const fkName = "fk_detail_kebutuhan_bahans_alokasi"
+	if migrator.HasConstraint(&models.DetailKebutuhanBahan{}, fkName) {
+		return
+	}
+
+	addSQL := "ALTER TABLE detail_kebutuhan_bahans ADD CONSTRAINT " + fkName +
+		" FOREIGN KEY (id_alokasi) REFERENCES alokasi_produksis(id_alokasi) ON DELETE CASCADE"
+	if err := config.DB.Exec(addSQL).Error; err != nil {
+		log.Println("Add FK gagal:", err)
+		return
+	}
+	log.Println("Add FK:", fkName)
+}
+
+// ensureLogAlokasiFK memastikan FK log_kerja_karyawans -> alokasi_produksis.
+func ensureLogAlokasiFK() {
+	if config.DB == nil {
+		return
+	}
+
+	migrator := config.DB.Migrator()
+	const fkName = "fk_log_kerja_karyawans_alokasi"
+	if migrator.HasConstraint(&models.LogKerjaKaryawan{}, fkName) {
+		return
+	}
+
+	addSQL := "ALTER TABLE log_kerja_karyawans ADD CONSTRAINT " + fkName +
+		" FOREIGN KEY (id_alokasi) REFERENCES alokasi_produksis(id_alokasi) ON DELETE CASCADE"
+	if err := config.DB.Exec(addSQL).Error; err != nil {
+		log.Println("Add FK gagal:", err)
+		return
+	}
+	log.Println("Add FK:", fkName)
 }
 
 // corsMiddleware mengizinkan frontend Vite mengakses API backend.
@@ -232,48 +379,6 @@ func seedInitialData() {
 		config.DB.Create(&models.BahanBaku{IDCabang: firstCabang.IDCabang, IDSupplier: supplier.IDSupplier, NamaBahan: "American Drill", StokAktual: 456, BatasMinimum: 500})
 	}
 
-	var pesananCount int64
-	config.DB.Model(&models.PesananGlobal{}).Count(&pesananCount)
-	if pesananCount == 0 {
-		config.DB.Create(&models.PesananGlobal{
-			NamaPesanan:  "Alvidiano",
-			TotalQty:     1234,
-			TglDeadline:  time.Now().AddDate(0, 1, 0),
-			StatusGlobal: "Proses",
-		})
-	}
-
-	var pesanan models.PesananGlobal
-	config.DB.First(&pesanan)
-
-	var alokasiCount int64
-	config.DB.Model(&models.AlokasiProduksi{}).Count(&alokasiCount)
-	if alokasiCount == 0 && pesanan.IDPesanan != 0 {
-		config.DB.Create(&models.AlokasiProduksi{IDPesanan: pesanan.IDPesanan, IDCabang: firstCabang.IDCabang, QtyAlokasi: 500, StatusLokal: "Proses"})
-	}
-
-	var alokasi models.AlokasiProduksi
-	config.DB.First(&alokasi)
-
-	var bahan models.BahanBaku
-	config.DB.First(&bahan)
-
-	var detailCount int64
-	config.DB.Model(&models.DetailKebutuhanBahan{}).Count(&detailCount)
-	if detailCount == 0 && alokasi.IDAlokasi != 0 && bahan.IDBahan != 0 {
-		config.DB.Create(&models.DetailKebutuhanBahan{IDAlokasi: alokasi.IDAlokasi, IDBahan: bahan.IDBahan, QtyBahanPerPcs: 0.5})
-	}
-
-	var logCount int64
-	config.DB.Model(&models.LogKerjaKaryawan{}).Count(&logCount)
-	if logCount == 0 && alokasi.IDAlokasi != 0 {
-		var firstUser models.User
-		config.DB.First(&firstUser)
-		if firstUser.IDUser != 0 {
-			config.DB.Create(&models.LogKerjaKaryawan{IDAlokasi: alokasi.IDAlokasi, IDUser: firstUser.IDUser, Tahapan: "Tambah"})
-		}
-	}
-
 	log.Println("Seed check completed")
 }
 
@@ -310,6 +415,21 @@ func reseedDatabase() error {
 		return err
 	}
 	if err := deleteAll(&models.Cabang{}); err != nil {
+		return err
+	}
+
+	seedInitialData()
+	return nil
+}
+
+// reseedUsers menghapus data user lalu mengisi ulang data user default.
+// Gunakan saat data user hilang, tanpa mengganggu data lainnya.
+func reseedUsers() error {
+	if config.DB == nil {
+		return errors.New("database belum terkoneksi")
+	}
+
+	if err := config.DB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&models.User{}).Error; err != nil {
 		return err
 	}
 

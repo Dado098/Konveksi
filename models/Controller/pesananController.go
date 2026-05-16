@@ -56,7 +56,7 @@ func buildUsageByBahan(tx *gorm.DB, pesananID uint) (map[uint]float64, error) {
 	usage := make(map[uint]float64)
 	for _, row := range detail {
 		qtyAlokasi := alokasiQty[row.IDAlokasi]
-		usage[row.IDBahan] += float64(qtyAlokasi) * row.QtyBahanPerPcs
+		usage[row.IDBahan] += float64(qtyAlokasi * row.QtyBahanPerPcs)
 	}
 
 	return usage, nil
@@ -170,6 +170,11 @@ func UpdatePesanan(c *gin.Context) {
 		newStatus = previousStatus
 	}
 
+	statusGlobalValue := strings.TrimSpace(input.StatusGlobal)
+	if statusGlobalValue == "" {
+		statusGlobalValue = data.StatusGlobal
+	}
+
 	tx := config.DB.Begin()
 
 	hargaFlatValue := input.HargaFlat
@@ -204,13 +209,23 @@ func UpdatePesanan(c *gin.Context) {
 		"total_harga":   hargaFlatValue,
 		"bayar":         bayarValue,
 		"tgl_deadline":  input.TglDeadline,
-		"status_global": input.StatusGlobal,
+		"status_global": statusGlobalValue,
 	}
 
 	if err := tx.Model(&data).Updates(updateData).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if statusGlobalValue != "" {
+		if err := tx.Model(&models.AlokasiProduksi{}).
+			Where("id_pesanan = ?", data.IDPesanan).
+			Update("status_lokal", statusGlobalValue).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	if previousStatus != statusProses && newStatus == statusProses {
@@ -234,6 +249,11 @@ func UpdatePesanan(c *gin.Context) {
 		return
 	}
 
+	if err := config.DB.First(&data, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, data)
 }
 
@@ -251,28 +271,57 @@ func DeletePesanan(c *gin.Context) {
 		return
 	}
 
+	tx := config.DB.Begin()
 	if normalizeStatus(data.StatusGlobal) == statusProses {
-		tx := config.DB.Begin()
 		if err := applyStockChange(tx, data.IDPesanan, false); err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		if err := tx.Delete(&data).Error; err != nil {
+	}
+
+	var alokasi []models.AlokasiProduksi
+	if err := tx.Where("id_pesanan = ?", data.IDPesanan).Find(&alokasi).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(alokasi) > 0 {
+		alokasiIDs := make([]uint, 0, len(alokasi))
+		for _, row := range alokasi {
+			alokasiIDs = append(alokasiIDs, row.IDAlokasi)
+		}
+
+		if err := tx.Where("id_alokasi IN ?", alokasiIDs).Delete(&models.DetailKebutuhanBahan{}).Error; err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		if err := tx.Commit().Error; err != nil {
+
+		if err := tx.Where("id_alokasi IN ?", alokasiIDs).Delete(&models.LogKerjaKaryawan{}).Error; err != nil {
+			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"message": "Pesanan berhasil dihapus"})
+	}
+
+	if err := tx.Where("id_pesanan = ?", data.IDPesanan).Delete(&models.AlokasiProduksi{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Hapus data
-	config.DB.Delete(&data)
+	if err := tx.Delete(&data).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Pesanan berhasil dihapus"})
 }

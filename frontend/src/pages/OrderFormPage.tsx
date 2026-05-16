@@ -6,6 +6,7 @@ import { api } from '../api/services'
 import { useAuth } from '../context/useAuth'
 import type { BahanBaku, Cabang } from '../types/api'
 import { showError, showSuccess } from '../utils/alerts'
+import { formatNumber } from '../utils/format'
 
 const statuses = ['Menunggu', 'Proses', 'Selesai', 'Batal']
 
@@ -168,7 +169,7 @@ export const OrderFormPage = () => {
             id_pesanan: created.id_pesanan,
             id_cabang: item.id_cabang,
             qty_alokasi: item.qty_alokasi,
-            status_lokal: 'Menunggu',
+            status_lokal: form.status_global,
           }),
         ),
       )
@@ -251,11 +252,14 @@ export const OrderFormPage = () => {
           <label htmlFor="harga">Harga Flat</label>
           <input
             id="harga"
-            type="number"
-            min={1}
-            step={100}
-            value={form.harga_flat}
-            onChange={(event) => setForm((current) => ({ ...current, harga_flat: Number(event.target.value) }))}
+            type="text"
+            inputMode="numeric"
+            value={formatNumber(form.harga_flat)}
+            onChange={(event) => {
+              const raw = event.target.value.replace(/[^0-9]/g, '')
+              const numeric = raw ? Number(raw) : 0
+              setForm((current) => ({ ...current, harga_flat: numeric }))
+            }}
             required
           />
 
@@ -296,8 +300,8 @@ export const OrderFormPage = () => {
               </select>
               <input
                 type="number"
-                min={0.01}
-                step="0.01"
+                min={1}
+                step={1}
                 value={item.qty_bahan_per_pcs}
                 onChange={(event) =>
                   setMaterial((current) =>

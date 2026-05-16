@@ -75,6 +75,13 @@ export const api = {
     const { data } = await apiClient.post<AlokasiProduksi>('/alokasi', payload)
     return data
   },
+  updateAlokasi: async (id: number, payload: Omit<AlokasiProduksi, 'id_alokasi'>) => {
+    const { data } = await apiClient.put<AlokasiProduksi>(`/alokasi/${id}`, payload)
+    return data
+  },
+  deleteAlokasi: async (id: number) => {
+    await apiClient.delete(`/alokasi/${id}`)
+  },
 
   // DETAIL KEBUTUHAN BAHAN
   getDetailBahan: async () => {

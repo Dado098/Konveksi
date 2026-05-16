@@ -4,7 +4,7 @@ import { parseApiError } from '../api/client'
 import { api } from '../api/services'
 import { Card, StatusPill } from '../components/UI'
 import type { AlokasiProduksi, BahanBaku, DetailKebutuhanBahan, Pesanan } from '../types/api'
-import { showInfo, showSuccess } from '../utils/alerts'
+import { confirmDanger, showInfo, showSuccess } from '../utils/alerts'
 import { formatDate, formatNumber, toInputDateValue } from '../utils/format'
 
 const statuses = ['Selesai', 'Proses', 'Menunggu', 'Batal']
@@ -89,13 +89,29 @@ export const ReportsPage = () => {
     })
   }, [orders, statusFilter, dateFilter])
 
-  const hasFilters = statusFilter.length > 0 || Boolean(dateFilter)
-
   const clearFilters = (closePanel = false) => {
     setDateFilter('')
     setStatusFilter([])
     if (closePanel) setOpenFilter(false)
     void showInfo('Filter dibersihkan', 'Laporan kembali ke semua data.')
+  }
+
+  const clearReports = async () => {
+    if (orders.length === 0) {
+      await showInfo('Tidak ada laporan', 'Tidak ada data laporan yang bisa dihapus.')
+      return
+    }
+
+    const confirmed = await confirmDanger('Hapus laporan?', 'Laporan akan dihapus dari tampilan.')
+    if (!confirmed) return
+
+    setOrders([])
+    setAlokasi([])
+    setDetailBahan([])
+    setBahan([])
+    setStatusFilter([])
+    setDateFilter('')
+    await showSuccess('Laporan dibersihkan', 'Semua data laporan sudah dihapus dari tampilan.')
   }
 
   // exportExcel mengunduh laporan ke file Excel dengan kolom rapi.
@@ -142,7 +158,7 @@ export const ReportsPage = () => {
           <button type="button" className="ghost-btn" onClick={() => void exportExcel()}>
             <Download size={16} /> Export
           </button>
-          <button type="button" className="ghost-btn" onClick={() => clearFilters(true)} disabled={!hasFilters}>
+          <button type="button" className="ghost-btn" onClick={() => void clearReports()}>
             Clear
           </button>
           <button type="button" className="ghost-btn" onClick={() => setOpenFilter((current) => !current)}>

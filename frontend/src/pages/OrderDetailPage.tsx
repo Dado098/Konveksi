@@ -12,6 +12,7 @@ import { formatDate, formatNumber, toInputDateValue } from '../utils/format'
 export const OrderDetailPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const normalizeRole = (role?: string) => (role === 'admin' ? 'karyawan' : role)
 
   // order dan alokasi menampung data pesanan serta alokasi terkait
   const [order, setOrder] = useState<Pesanan | null>(null)
@@ -21,7 +22,9 @@ export const OrderDetailPage = () => {
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cabangNames, setCabangNames] = useState<Map<number, string>>(new Map())
+  const [baseStatus, setBaseStatus] = useState('')
   const { user } = useAuth()
+  const isKaryawan = normalizeRole(user?.role) === 'karyawan'
 
   const orderId = Number(id)
 
@@ -40,7 +43,22 @@ export const OrderDetailPage = () => {
         ? { ...selectedOrder, harga_flat: selectedOrder.harga_flat || selectedOrder.total_harga || 0 }
         : null
       setOrder(normalizedOrder)
-      setAlokasi(allocation.filter((item) => item.id_pesanan === orderId))
+      setBaseStatus(normalizedOrder?.status_global ?? '')
+      const orderAllocations = allocation.filter((item) => item.id_pesanan === orderId)
+      if (normalizedOrder) {
+        const targetStatus = normalizedOrder.status_global
+        const mismatched = orderAllocations.filter((item) => item.status_lokal !== targetStatus)
+        if (mismatched.length > 0) {
+          await Promise.all(
+            mismatched.map((item) => api.updateAlokasi(item.id_alokasi, { ...item, status_lokal: targetStatus })),
+          )
+          setAlokasi(orderAllocations.map((item) => ({ ...item, status_lokal: targetStatus })))
+        } else {
+          setAlokasi(orderAllocations)
+        }
+      } else {
+        setAlokasi(orderAllocations)
+      }
       setDetailBahan(detail)
       setBahan(bahanData)
       setCabangNames(new Map(cabang.map((item) => [item.id_cabang, item.nama_cabang])))
@@ -62,10 +80,18 @@ export const OrderDetailPage = () => {
   const deleteOrder = async () => {
     if (!order) return
 
+    if (isKaryawan) {
+      await showError('Akses ditolak', 'Karyawan tidak diizinkan menghapus pesanan.')
+      return
+    }
+
     try {
       const confirmed = await confirmDanger('Hapus pesanan?', 'Pesanan akan terhapus permanen.')
       if (!confirmed) return
       await api.deletePesanan(order.id_pesanan)
+      if (alokasi.length > 0) {
+        await Promise.all(alokasi.map((item) => api.deleteAlokasi(item.id_alokasi)))
+      }
       await showSuccess('Pesanan dihapus', 'Data pesanan berhasil dihapus.')
       if (user) {
         const firstAllocation = alokasi[0]
@@ -120,6 +146,17 @@ export const OrderDetailPage = () => {
   // submitEdit mengirim perubahan data pesanan ke backend
   const submitEdit = async () => {
     if (!order) return
+
+    if (isKaryawan) {
+      const normalizedBase = baseStatus.toLowerCase()
+      const normalizedNext = order.status_global.toLowerCase()
+      if (!(normalizedBase.includes('proses') && normalizedNext.includes('selesai'))) {
+        const message = 'Karyawan hanya boleh mengubah status dari Proses menjadi Selesai.'
+        setError(message)
+        await showError('Akses ditolak', message)
+        return
+      }
+    }
 
     const trimmedName = order.nama_pesanan.trim()
     const totalQty = Number.isFinite(order.total_qty) ? Math.floor(order.total_qty) : 0
@@ -178,6 +215,9 @@ export const OrderDetailPage = () => {
         status_global: order.status_global,
         tgl_deadline: deadlineDate.toISOString(),
       })
+      await Promise.all(
+        alokasi.map((item) => api.updateAlokasi(item.id_alokasi, { ...item, status_lokal: order.status_global })),
+      )
       setEditing(false)
       await fetchData()
       await showSuccess('Perubahan disimpan', 'Detail pesanan berhasil diperbarui.')
@@ -212,11 +252,24 @@ export const OrderDetailPage = () => {
           <button type="button" className="ghost-btn" onClick={exportDetail}>
             <Download size={16} /> Export
           </button>
-          <button type="button" className="outline-btn danger" onClick={() => void deleteOrder()}>
-            Hapus
-          </button>
+          {!isKaryawan && (
+            <button type="button" className="outline-btn danger" onClick={() => void deleteOrder()}>
+              Hapus
+            </button>
+          )}
           {!editing ? (
-            <button type="button" className="primary-btn" onClick={() => setEditing(true)}>
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() => {
+                if (isKaryawan && !baseStatus.toLowerCase().includes('proses')) return
+                if (isKaryawan) {
+                  setOrder((current) => (current ? { ...current, status_global: 'Selesai' } : null))
+                }
+                setEditing(true)
+              }}
+              disabled={isKaryawan && !baseStatus.toLowerCase().includes('proses')}
+            >
               Edit
             </button>
           ) : (
@@ -297,6 +350,7 @@ export const OrderDetailPage = () => {
               {editing ? (
                 <input
                   value={order.nama_pesanan}
+                  disabled={isKaryawan}
                   onChange={(event) => setOrder((current) => (current ? { ...current, nama_pesanan: event.target.value } : null))}
                 />
               ) : (
@@ -313,6 +367,7 @@ export const OrderDetailPage = () => {
                 <input
                   type="date"
                   value={toInputDateValue(order.tgl_deadline)}
+                  disabled={isKaryawan}
                   onChange={(event) =>
                     setOrder((current) => (current ? { ...current, tgl_deadline: new Date(event.target.value).toISOString() } : null))
                   }
@@ -325,11 +380,15 @@ export const OrderDetailPage = () => {
               <span>Jumlah</span>
               {editing ? (
                 <input
-                  type="number"
-                  value={order.total_qty}
-                  onChange={(event) =>
-                    setOrder((current) => (current ? { ...current, total_qty: Number(event.target.value) } : null))
-                  }
+                  type="text"
+                  inputMode="numeric"
+                  value={formatNumber(order.total_qty)}
+                  disabled={isKaryawan}
+                  onChange={(event) => {
+                    const raw = event.target.value.replace(/[^0-9]/g, '')
+                    const numeric = raw ? Number(raw) : 0
+                    setOrder((current) => (current ? { ...current, total_qty: numeric } : null))
+                  }}
                 />
               ) : (
                 <strong>{formatNumber(order.total_qty)}</strong>
@@ -339,13 +398,15 @@ export const OrderDetailPage = () => {
               <span>Harga Flat</span>
               {editing ? (
                 <input
-                  type="number"
-                  min={1}
-                  step={100}
-                  value={order.harga_flat}
-                  onChange={(event) =>
-                    setOrder((current) => (current ? { ...current, harga_flat: Number(event.target.value) } : null))
-                  }
+                  type="text"
+                  inputMode="numeric"
+                  value={formatNumber(order.harga_flat ?? 0)}
+                  disabled={isKaryawan}
+                  onChange={(event) => {
+                    const raw = event.target.value.replace(/[^0-9]/g, '')
+                    const numeric = raw ? Number(raw) : 0
+                    setOrder((current) => (current ? { ...current, harga_flat: numeric } : null))
+                  }}
                 />
               ) : (
                 <strong>Rp{formatNumber(order.harga_flat ?? 0)}</strong>
@@ -360,6 +421,7 @@ export const OrderDetailPage = () => {
               {editing ? (
                 <select
                   value={order.status_global}
+                  disabled={isKaryawan}
                   onChange={(event) =>
                     setOrder((current) => {
                       if (!current) return null
@@ -372,10 +434,16 @@ export const OrderDetailPage = () => {
                     })
                   }
                 >
-                  <option value="Menunggu">Menunggu</option>
-                  <option value="Proses">Proses</option>
-                  <option value="Selesai">Selesai</option>
-                  <option value="Batal">Batal</option>
+                  {isKaryawan ? (
+                    <option value="Selesai">Selesai</option>
+                  ) : (
+                    <>
+                      <option value="Menunggu">Menunggu</option>
+                      <option value="Proses">Proses</option>
+                      <option value="Selesai">Selesai</option>
+                      <option value="Batal">Batal</option>
+                    </>
+                  )}
                 </select>
               ) : (
                 <StatusPill status={order.status_global} />
@@ -388,6 +456,7 @@ export const OrderDetailPage = () => {
                   type="text"
                   inputMode="numeric"
                   value={formatNumber(order.bayar ?? 0)}
+                  disabled={isKaryawan}
                   onChange={(event) => {
                     const raw = event.target.value.replace(/[^0-9]/g, '')
                     const numeric = raw ? Number(raw) : 0

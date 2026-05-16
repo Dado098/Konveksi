@@ -28,7 +28,15 @@ func CreateDetailBahan(c *gin.Context) {
 		return
 	}
 
-	config.DB.Create(&input)
+	if input.QtyBahanPerPcs <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Qty bahan per pcs harus lebih dari 0"})
+		return
+	}
+
+	if err := config.DB.Create(&input).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, input)
 }
 
@@ -46,6 +54,11 @@ func UpdateDetailBahan(c *gin.Context) {
 
 	var input models.DetailKebutuhanBahan
 	c.ShouldBindJSON(&input)
+
+	if input.QtyBahanPerPcs <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Qty bahan per pcs harus lebih dari 0"})
+		return
+	}
 
 	config.DB.Model(&data).Updates(input)
 

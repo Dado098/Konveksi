@@ -4,7 +4,7 @@ import { api } from '../api/services'
 import { Card } from '../components/UI'
 import { useRealtime } from '../hooks/useRealtime'
 import type { AlokasiProduksi, Cabang, LogKerja, Pesanan, User } from '../types/api'
-import { confirmDanger, showError, showSuccess } from '../utils/alerts'
+import { confirmDanger, showError, showInfo, showSuccess } from '../utils/alerts'
 import { formatDate } from '../utils/format'
 
 export const HistoryPage = () => {
@@ -55,6 +55,11 @@ export const HistoryPage = () => {
   }, 10000)
 
   const clearHistory = async () => {
+    if (logs.length === 0) {
+      await showInfo('Tidak ada riwayat', 'Tidak ada log aktivitas yang bisa dihapus.')
+      return
+    }
+
     try {
       const confirmed = await confirmDanger('Bersihkan riwayat?', 'Semua log aktivitas akan dihapus.')
       if (!confirmed) return

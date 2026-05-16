@@ -6,4 +6,5 @@ type AlokasiProduksi struct {
 	IDCabang    uint   `json:"id_cabang"`
 	QtyAlokasi  int    `json:"qty_alokasi"`
 	StatusLokal string `json:"status_lokal"`
+	Pesanan     PesananGlobal `gorm:"foreignKey:IDPesanan;references:IDPesanan;constraint:OnDelete:CASCADE" json:"-"`
 }

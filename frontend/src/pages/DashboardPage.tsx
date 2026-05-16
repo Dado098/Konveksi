@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
 import { parseApiError } from '../api/client'
 import { api } from '../api/services'
 import { Card, StatusPill } from '../components/UI'
+import { useAuth } from '../context/useAuth'
 import { useRealtime } from '../hooks/useRealtime'
 import type { AlokasiProduksi, BahanBaku, Cabang, Pesanan } from '../types/api'
 import { formatDate, formatNumber } from '../utils/format'
@@ -25,8 +26,11 @@ const piePalette = ['#5a52ea', '#ffa44c', '#d4d8e0']
 const barPalette = ['#5a52ea', '#26a6ff', '#ffa44c', '#2ad7a2', '#f87171', '#a855f7']
 
 export const DashboardPage = () => {
-    const isCanceled = (status: string) => status.toLowerCase().includes('batal')
-    const isCompleted = (status: string) => status.toLowerCase().includes('selesai')
+  const { user } = useAuth()
+  const normalizeRole = (role?: string) => (role === 'admin' ? 'karyawan' : role)
+  const isKaryawan = normalizeRole(user?.role) === 'karyawan'
+  const isCanceled = (status: string) => status.toLowerCase().includes('batal')
+  const isCompleted = (status: string) => status.toLowerCase().includes('selesai')
   // data menampung hasil fetch API untuk ringkasan dashboard
   const [data, setData] = useState<DashboardState>({ pesanan: [], bahan: [], alokasi: [], cabang: [] })
   const [error, setError] = useState<string | null>(null)
@@ -76,9 +80,11 @@ export const DashboardPage = () => {
   // productionSeries merangkum produksi per cabang untuk chart bar
   const productionSeries = useMemo(() => {
     const grouped = new Map<number, number>()
-    data.alokasi.forEach((item) => {
-      grouped.set(item.id_cabang, (grouped.get(item.id_cabang) ?? 0) + item.qty_alokasi)
-    })
+    data.alokasi
+      .filter((item) => item.status_lokal.toLowerCase().includes('proses'))
+      .forEach((item) => {
+        grouped.set(item.id_cabang, (grouped.get(item.id_cabang) ?? 0) + item.qty_alokasi)
+      })
 
     const cabangMap = new Map(data.cabang.map((item) => [item.id_cabang, item.nama_cabang]))
 
@@ -107,6 +113,26 @@ export const DashboardPage = () => {
   const lowPieData = totalStockQty === 0 ? [{ name: 'empty', value: 1 }] : [
     { name: 'low', value: lowStockQty },
     { name: 'rest', value: normalStockQty },
+  ]
+
+  const activeOrders = useMemo(() => {
+    return data.pesanan.filter((item) => !isCompleted(item.status_global) && !isCanceled(item.status_global))
+  }, [data.pesanan])
+
+  const activeStatus = useMemo(() => {
+    const seed = { proses: 0, menunggu: 0 }
+    return activeOrders.reduce((accumulator, item) => {
+      const normalized = item.status_global.toLowerCase()
+      if (normalized.includes('proses')) accumulator.proses += 1
+      else accumulator.menunggu += 1
+      return accumulator
+    }, seed)
+  }, [activeOrders])
+
+  const activeTotal = activeStatus.proses + activeStatus.menunggu
+  const activePieData = activeTotal === 0 ? [{ name: 'empty', value: 1 }] : [
+    { name: 'proses', value: activeStatus.proses },
+    { name: 'menunggu', value: activeStatus.menunggu },
   ]
 
   const cabangMap = useMemo(() => new Map(data.cabang.map((item) => [item.id_cabang, item.nama_cabang])), [data.cabang])
@@ -171,82 +197,134 @@ export const DashboardPage = () => {
       {error && <div className="error-box">{error}</div>}
 
       <div className="dashboard-grid">
-        <Card title="Produksi per Cabang">
-          <div className="chart-wrap">
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={productionSeries}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="qty" radius={[6, 6, 0, 0]}>
-                  {productionSeries.map((entry, index) => (
-                    <Cell key={`cell-${entry.label}`} fill={barPalette[index % barPalette.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+        {!isKaryawan && (
+          <Card title="Produksi per Cabang">
+            {productionSeries.length === 0 ? (
+              <p>Belum ada data produksi per cabang.</p>
+            ) : (
+              <div className="chart-wrap">
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={productionSeries}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="label" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="qty" radius={[6, 6, 0, 0]}>
+                      {productionSeries.map((entry, index) => (
+                        <Cell key={`cell-${entry.label}`} fill={barPalette[index % barPalette.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </Card>
+        )}
 
-        <Card title="Monitoring Stok">
-          <div className="pie-row">
-            <div className="pie-item">
-              <ResponsiveContainer width={130} height={130}>
-                <PieChart>
-                  <Pie
-                    data={normalPieData}
-                    dataKey="value"
-                    innerRadius={44}
-                    outerRadius={58}
-                    startAngle={90}
-                    endAngle={-270}
-                    stroke="none"
-                    paddingAngle={0}
-                    cornerRadius={0}
-                  >
-                    {totalStockQty === 0 ? (
-                      <Cell fill="#e6e7eb" />
-                    ) : (
-                      <>
-                        <Cell fill={piePalette[0]} />
+        {isKaryawan ? (
+          <Card title="Monitoring Pesanan Aktif">
+            <div className="pie-row">
+              <div className="pie-item">
+                <ResponsiveContainer width={130} height={130}>
+                  <PieChart>
+                    <Pie
+                      data={activePieData}
+                      dataKey="value"
+                      innerRadius={44}
+                      outerRadius={58}
+                      startAngle={90}
+                      endAngle={-270}
+                      stroke="none"
+                      paddingAngle={0}
+                      cornerRadius={0}
+                    >
+                      {activeTotal === 0 ? (
                         <Cell fill="#e6e7eb" />
-                      </>
-                    )}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <p><strong>{Math.round((normalStockQty / (totalStockQty || 1)) * 100)}%</strong> Aman</p>
+                      ) : (
+                        <>
+                          <Cell fill={piePalette[0]} />
+                          <Cell fill={piePalette[1]} />
+                        </>
+                      )}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <p><strong>{activeTotal}</strong> Pesanan Aktif</p>
+              </div>
+              <div className="pie-item">
+                <div className="status-bars">
+                  <div className="status-row">
+                    <span>Proses</span>
+                    <strong>{activeStatus.proses}</strong>
+                  </div>
+                  <div className="status-row">
+                    <span>Menunggu</span>
+                    <strong>{activeStatus.menunggu}</strong>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="pie-item">
-              <ResponsiveContainer width={130} height={130}>
-                <PieChart>
-                  <Pie
-                    data={lowPieData}
-                    dataKey="value"
-                    innerRadius={44}
-                    outerRadius={58}
-                    startAngle={90}
-                    endAngle={-270}
-                    stroke="none"
-                    paddingAngle={0}
-                    cornerRadius={0}
-                  >
-                    {totalStockQty === 0 ? (
-                      <Cell fill="#e6e7eb" />
-                    ) : (
-                      <>
-                        <Cell fill={piePalette[1]} />
+          </Card>
+        ) : (
+          <Card title="Monitoring Stok">
+            <div className="pie-row">
+              <div className="pie-item">
+                <ResponsiveContainer width={130} height={130}>
+                  <PieChart>
+                    <Pie
+                      data={normalPieData}
+                      dataKey="value"
+                      innerRadius={44}
+                      outerRadius={58}
+                      startAngle={90}
+                      endAngle={-270}
+                      stroke="none"
+                      paddingAngle={0}
+                      cornerRadius={0}
+                    >
+                      {totalStockQty === 0 ? (
                         <Cell fill="#e6e7eb" />
-                      </>
-                    )}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <p><strong>{Math.round((lowStockQty / (totalStockQty || 1)) * 100)}%</strong> Menipis</p>
+                      ) : (
+                        <>
+                          <Cell fill={piePalette[0]} />
+                          <Cell fill="#e6e7eb" />
+                        </>
+                      )}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <p><strong>{Math.round((normalStockQty / (totalStockQty || 1)) * 100)}%</strong> Aman</p>
+              </div>
+              <div className="pie-item">
+                <ResponsiveContainer width={130} height={130}>
+                  <PieChart>
+                    <Pie
+                      data={lowPieData}
+                      dataKey="value"
+                      innerRadius={44}
+                      outerRadius={58}
+                      startAngle={90}
+                      endAngle={-270}
+                      stroke="none"
+                      paddingAngle={0}
+                      cornerRadius={0}
+                    >
+                      {totalStockQty === 0 ? (
+                        <Cell fill="#e6e7eb" />
+                      ) : (
+                        <>
+                          <Cell fill={piePalette[1]} />
+                          <Cell fill="#e6e7eb" />
+                        </>
+                      )}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <p><strong>{Math.round((lowStockQty / (totalStockQty || 1)) * 100)}%</strong> Menipis</p>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         <Card title="Total Status Pemesanan">
           <div className="status-bars">
@@ -288,30 +366,32 @@ export const DashboardPage = () => {
           </div>
         </Card>
 
-        <Card title="Notifikasi Stok Minimum">
-          <div className="simple-table">
-            <div className="thead">
-              <span>Bahan</span>
-              <span>Cabang</span>
-              <span>Stok</span>
-              <span>Batas</span>
-            </div>
-            {lowStockItems.length === 0 ? (
-              <div className="trow">
-                <span>Semua stok aman.</span>
+        {!isKaryawan && (
+          <Card title="Notifikasi Stok Minimum">
+            <div className="simple-table">
+              <div className="thead">
+                <span>Bahan</span>
+                <span>Cabang</span>
+                <span>Stok</span>
+                <span>Batas</span>
               </div>
-            ) : (
-              lowStockItems.map((item) => (
-                <div className="trow" key={item.id}>
-                  <span>{item.nama}</span>
-                  <span>{item.cabang}</span>
-                  <span>{item.stok}</span>
-                  <span>{item.batas}</span>
+              {lowStockItems.length === 0 ? (
+                <div className="trow">
+                  <span>Semua stok aman.</span>
                 </div>
-              ))
-            )}
-          </div>
-        </Card>
+              ) : (
+                lowStockItems.map((item) => (
+                  <div className="trow" key={item.id}>
+                    <span>{item.nama}</span>
+                    <span>{item.cabang}</span>
+                    <span>{item.stok}</span>
+                    <span>{item.batas}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        )}
 
         <Card title="Notifikasi Deadline">
           <div className="simple-table">

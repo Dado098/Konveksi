@@ -27,7 +27,7 @@ const readStoredUser = (): User | null => {
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(() => readStoredUser())
   const idleTimerRef = useRef<number | null>(null)
-  const idleTimeoutMs = 15 * 60 * 1000
+  const idleTimeoutMs = 10 * 60 * 1000
 
   const login = useCallback(async (nama: string, password: string): Promise<void> => {
     try {

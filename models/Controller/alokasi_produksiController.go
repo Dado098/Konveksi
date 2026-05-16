@@ -15,7 +15,49 @@ import (
 func GetAlokasi(c *gin.Context) {
 	var data []models.AlokasiProduksi
 	config.DB.Find(&data)
-	c.JSON(http.StatusOK, data)
+	if len(data) == 0 {
+		c.JSON(http.StatusOK, data)
+		return
+	}
+
+	pesananIDs := make([]uint, 0, len(data))
+	for _, row := range data {
+		pesananIDs = append(pesananIDs, row.IDPesanan)
+	}
+
+	var pesanan []models.PesananGlobal
+	config.DB.Where("id_pesanan IN ?", pesananIDs).Find(&pesanan)
+	pesananSet := make(map[uint]struct{}, len(pesanan))
+	for _, row := range pesanan {
+		pesananSet[row.IDPesanan] = struct{}{}
+	}
+
+	filtered := make([]models.AlokasiProduksi, 0, len(data))
+	orphanAlokasi := make([]uint, 0)
+	for _, row := range data {
+		if _, ok := pesananSet[row.IDPesanan]; ok {
+			filtered = append(filtered, row)
+		} else {
+			orphanAlokasi = append(orphanAlokasi, row.IDAlokasi)
+		}
+	}
+
+	if len(orphanAlokasi) > 0 {
+		if err := config.DB.Where("id_alokasi IN ?", orphanAlokasi).Delete(&models.DetailKebutuhanBahan{}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if err := config.DB.Where("id_alokasi IN ?", orphanAlokasi).Delete(&models.LogKerjaKaryawan{}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if err := config.DB.Where("id_alokasi IN ?", orphanAlokasi).Delete(&models.AlokasiProduksi{}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, filtered)
 }
 
 // CreateAlokasi menambah data alokasi produksi.
@@ -28,7 +70,15 @@ func CreateAlokasi(c *gin.Context) {
 		return
 	}
 
-	config.DB.Create(&input)
+	if input.IDPesanan == 0 || input.IDCabang == 0 || input.QtyAlokasi <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data alokasi tidak lengkap"})
+		return
+	}
+
+	if err := config.DB.Create(&input).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, input)
 }
 

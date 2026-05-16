@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"io"
 	"net/http"
 	"strconv"
 
@@ -9,6 +10,7 @@ import (
 	"jr-konveksi/utils"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type userInput struct {
@@ -27,6 +29,10 @@ type changePasswordInput struct {
 	IDUser          uint   `json:"id_user"`
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
+}
+
+type resetAllPasswordInput struct {
+	Password string `json:"password"`
 }
 
 // GetUser mengembalikan daftar user untuk kebutuhan autentikasi & manajemen.
@@ -186,7 +192,7 @@ func LoginUser(c *gin.Context) {
 
 	var user models.User
 	if err := config.DB.Where("LOWER(nama) = LOWER(?)", input.Nama).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User tidak ditemukan"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Password tidak valid"})
 		return
 	}
 
@@ -239,6 +245,36 @@ func ChangePassword(c *gin.Context) {
 	user.PasswordHash = ""
 	user.IDUser = user.IDUser
 	c.JSON(http.StatusOK, user)
+}
+
+// ResetAllPasswords mengatur ulang password semua user ke password default.
+// Endpoint: POST /api/auth/reset-all-passwords
+func ResetAllPasswords(c *gin.Context) {
+	var input resetAllPasswordInput
+	if err := c.ShouldBindJSON(&input); err != nil && err != io.EOF {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	defaultPassword := input.Password
+	if defaultPassword == "" {
+		defaultPassword = "konveksi123"
+	}
+
+	passwordHash, err := utils.HashPassword(defaultPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memproses password"})
+		return
+	}
+
+	if err := config.DB.Session(&gorm.Session{AllowGlobalUpdate: true}).
+		Model(&models.User{}).
+		Update("password_hash", passwordHash).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mereset password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password semua user telah direset"})
 }
 
 // DeleteUser menghapus user berdasarkan ID.

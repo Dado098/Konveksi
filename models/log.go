@@ -9,4 +9,5 @@ type LogKerjaKaryawan struct {
 	IDCabang    uint      `json:"id_cabang"`
 	Tahapan     string    `json:"tahapan"`
 	WaktuUpdate time.Time `gorm:"autoCreateTime" json:"waktu_update"`
+	Alokasi     AlokasiProduksi `gorm:"foreignKey:IDAlokasi;references:IDAlokasi;constraint:OnDelete:CASCADE" json:"-"`
 }

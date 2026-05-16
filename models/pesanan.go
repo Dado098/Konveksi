@@ -11,4 +11,5 @@ type PesananGlobal struct {
 	Bayar        float64   `json:"bayar"`
 	TglDeadline  time.Time `json:"tgl_deadline"`
 	StatusGlobal string    `json:"status_global"`
+	Alokasi      []AlokasiProduksi `gorm:"foreignKey:IDPesanan;references:IDPesanan;constraint:OnDelete:CASCADE" json:"-"`
 }

@@ -479,6 +479,80 @@ td a {
   gap: 12px;
 }
 
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    overflow-x: auto;
+  }
+
+  .side-nav {
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .side-link,
+  .logout-link {
+    padding: 8px 10px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    height: auto;
+    padding: 14px 18px;
+  }
+
+  .search-wrap {
+    width: 100%;
+  }
+
+  .row-between {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .row-end {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-layout.with-filter {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .page-content {
+    padding: 16px 12px;
+  }
+
+  .page-title-wrap h1 {
+    font-size: 26px;
+  }
+
+  .card h3 {
+    font-size: 20px;
+  }
+
+  .simple-table .thead,
+  .simple-table .trow {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+}
+
 .summary-list {
   display: flex;
   flex-direction: column;

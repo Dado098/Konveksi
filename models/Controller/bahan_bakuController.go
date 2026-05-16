@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"jr-konveksi/config"
 	"jr-konveksi/models"
@@ -30,8 +31,15 @@ func CreateBahan(c *gin.Context) {
 	}
 
 	// VALIDASI
+	bahan.NamaBahan = strings.TrimSpace(bahan.NamaBahan)
 	if bahan.NamaBahan == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama bahan wajib diisi"})
+		return
+	}
+
+	var existing models.BahanBaku
+	if err := config.DB.Where("LOWER(nama_bahan) = ?", strings.ToLower(bahan.NamaBahan)).First(&existing).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama bahan sudah terdaftar"})
 		return
 	}
 
@@ -64,8 +72,17 @@ func UpdateBahan(c *gin.Context) {
 	}
 
 	// VALIDASI
+	input.NamaBahan = strings.TrimSpace(input.NamaBahan)
 	if input.NamaBahan == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama bahan wajib diisi"})
+		return
+	}
+
+	var existing models.BahanBaku
+	if err := config.DB.
+		Where("LOWER(nama_bahan) = ? AND id_bahan <> ?", strings.ToLower(input.NamaBahan), bahan.IDBahan).
+		First(&existing).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama bahan sudah terdaftar"})
 		return
 	}
 

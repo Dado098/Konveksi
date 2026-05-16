@@ -12,6 +12,8 @@ import { formatDate } from '../utils/format'
 export const OrdersPage = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const normalizeRole = (role?: string) => (role === 'admin' ? 'karyawan' : role)
+  const isKaryawan = normalizeRole(user?.role) === 'karyawan'
   const [orders, setOrders] = useState<Pesanan[]>([])
   const [alokasi, setAlokasi] = useState<AlokasiProduksi[]>([])
   const [detailBahan, setDetailBahan] = useState<DetailKebutuhanBahan[]>([])
@@ -48,10 +50,19 @@ export const OrdersPage = () => {
 
   // removeOrder menghapus pesanan lalu refresh daftar
   const removeOrder = async (id: number) => {
+    if (isKaryawan) {
+      await showError('Akses ditolak', 'Karyawan tidak diizinkan menghapus pesanan.')
+      return
+    }
     try {
       const confirmed = await confirmDanger('Hapus pesanan?', 'Pesanan akan terhapus permanen.')
       if (!confirmed) return
       await api.deletePesanan(id)
+      const alokasiData = await api.getAlokasi()
+      const orphanTargets = alokasiData.filter((item) => item.id_pesanan === id)
+      if (orphanTargets.length > 0) {
+        await Promise.all(orphanTargets.map((item) => api.deleteAlokasi(item.id_alokasi)))
+      }
       await loadData()
       await showSuccess('Pesanan dihapus', 'Data pesanan berhasil dihapus.')
       if (user) {
@@ -148,9 +159,11 @@ export const OrdersPage = () => {
           <button type="button" className="ghost-btn" onClick={() => setShowCanceled((current) => !current)}>
             {showCanceled ? 'Sembunyikan Batal' : 'Tampilkan Batal'}
           </button>
-          <button className="primary-btn" type="button" onClick={() => navigate('/pesanan/new')}>
-            <Plus size={16} /> Tambah
-          </button>
+          {!isKaryawan && (
+            <button className="primary-btn" type="button" onClick={() => navigate('/pesanan/new')}>
+              <Plus size={16} /> Tambah
+            </button>
+          )}
         </div>
       </div>
 
@@ -198,6 +211,7 @@ export const OrdersPage = () => {
                         type="button"
                         className="outline-btn danger"
                         onClick={() => void removeOrder(item.id_pesanan)}
+                        disabled={isKaryawan}
                       >
                         Hapus
                       </button>
