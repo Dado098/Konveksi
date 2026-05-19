@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -41,10 +42,8 @@ func buildUsageByBahan(tx *gorm.DB, pesananID uint) (map[uint]float64, error) {
 		return map[uint]float64{}, nil
 	}
 
-	alokasiQty := make(map[uint]int)
 	alokasiIDs := make([]uint, 0, len(alokasi))
 	for _, row := range alokasi {
-		alokasiQty[row.IDAlokasi] = row.QtyAlokasi
 		alokasiIDs = append(alokasiIDs, row.IDAlokasi)
 	}
 
@@ -55,8 +54,7 @@ func buildUsageByBahan(tx *gorm.DB, pesananID uint) (map[uint]float64, error) {
 
 	usage := make(map[uint]float64)
 	for _, row := range detail {
-		qtyAlokasi := alokasiQty[row.IDAlokasi]
-		usage[row.IDBahan] += float64(qtyAlokasi * row.QtyBahanPerPcs)
+		usage[row.IDBahan] += float64(row.QtyBahanPerPcs)
 	}
 
 	return usage, nil
@@ -81,7 +79,9 @@ func applyStockChange(tx *gorm.DB, pesananID uint, deduct bool) error {
 		newStock := bahan.StokAktual
 		if deduct {
 			if newStock < usage {
-				return errors.New("stok tidak mencukupi untuk pesanan")
+				return errors.New(
+					fmt.Sprintf("stok tidak mencukupi untuk %s: butuh %.0f, tersedia %.0f", bahan.NamaBahan, usage, newStock),
+				)
 			}
 			newStock -= usage
 		} else {

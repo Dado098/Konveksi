@@ -41,7 +41,7 @@ export const OrderFormPage = () => {
         setAlokasi([{ id_cabang: cabangData[0].id_cabang, qty_alokasi: 0 }])
       }
       if (bahanData.length > 0 && material.length === 0) {
-        setMaterial([{ id_bahan: bahanData[0].id_bahan, qty_bahan_per_pcs: 0 }])
+        setMaterial([{ id_bahan: bahanData[0].id_bahan, qty_bahan_per_pcs: 1 }])
       }
     } catch (fetchError) {
       setError(parseApiError(fetchError))
@@ -279,6 +279,7 @@ export const OrderFormPage = () => {
           <div className="divider" />
           <h4>Kebutuhan Bahan</h4>
           <p className="subtitle">Pilih bahan untuk pesanan dan isi kebutuhan per pcs.</p>
+          <p className="subtitle">Qty bahan = total kebutuhan bahan untuk pesanan (contoh: 100).</p>
 
           {material.map((item, index) => (
             <div key={`${item.id_bahan}-${index}`} className="allocation-row">
@@ -306,12 +307,21 @@ export const OrderFormPage = () => {
                 onChange={(event) =>
                   setMaterial((current) =>
                     current.map((row, rowIndex) =>
-                      rowIndex === index ? { ...row, qty_bahan_per_pcs: Number(event.target.value) } : row,
+                      rowIndex === index
+                        ? {
+                            ...row,
+                            qty_bahan_per_pcs:
+                              Number.isFinite(Number(event.target.value)) && Number(event.target.value) > 0
+                                ? Number(event.target.value)
+                                : 1,
+                          }
+                        : row,
                     ),
                   )
                 }
-                placeholder="Qty/Pcs"
+                placeholder="Qty Bahan"
               />
+              <span className="subtitle">Total kebutuhan: {formatNumber(item.qty_bahan_per_pcs)}</span>
               <button
                 type="button"
                 className="outline-btn danger"
@@ -329,7 +339,7 @@ export const OrderFormPage = () => {
               onClick={() =>
                 setMaterial((current) => [
                   ...current,
-                  { id_bahan: bahan[0]?.id_bahan ?? 1, qty_bahan_per_pcs: 0 },
+                  { id_bahan: bahan[0]?.id_bahan ?? 1, qty_bahan_per_pcs: 1 },
                 ])
               }
             >

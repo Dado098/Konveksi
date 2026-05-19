@@ -116,6 +116,7 @@ export const OrderDetailPage = () => {
   }, [alokasi])
 
   const bahanMap = useMemo(() => new Map(bahan.map((item) => [item.id_bahan, item.nama_bahan])), [bahan])
+  const bahanStockMap = useMemo(() => new Map(bahan.map((item) => [item.id_bahan, item])), [bahan])
   const detailRows = useMemo(() => {
     const alokasiIds = new Set(alokasi.map((item) => item.id_alokasi))
     return detailBahan.filter((item) => alokasiIds.has(item.id_alokasi))
@@ -147,13 +148,42 @@ export const OrderDetailPage = () => {
   const submitEdit = async () => {
     if (!order) return
 
-    if (isKaryawan) {
-      const normalizedBase = baseStatus.toLowerCase()
-      const normalizedNext = order.status_global.toLowerCase()
-      if (!(normalizedBase.includes('proses') && normalizedNext.includes('selesai'))) {
-        const message = 'Karyawan hanya boleh mengubah status dari Proses menjadi Selesai.'
+    const normalizedBase = baseStatus.toLowerCase()
+    const normalizedNext = order.status_global.toLowerCase()
+    if (normalizedBase !== 'proses' && normalizedNext === 'proses') {
+      const usageByBahan = new Map<number, number>()
+
+      detailBahan.forEach((detail) => {
+        usageByBahan.set(
+          detail.id_bahan,
+          (usageByBahan.get(detail.id_bahan) ?? 0) + detail.qty_bahan_per_pcs,
+        )
+      })
+
+      const insufficient: string[] = []
+      const insufficientDetails: string[] = []
+      usageByBahan.forEach((usage, bahanId) => {
+        const bahanItem = bahanStockMap.get(bahanId)
+        if (!bahanItem) {
+          const label = bahanMap.get(bahanId) ?? `Bahan #${bahanId}`
+          insufficient.push(label)
+          insufficientDetails.push(`${label}: butuh ${formatNumber(usage)}, tersedia 0`)
+          return
+        }
+        if (bahanItem.stok_aktual < usage) {
+          const available = bahanItem.stok_aktual
+          const shortfall = usage - available
+          insufficient.push(bahanItem.nama_bahan)
+          insufficientDetails.push(
+            `${bahanItem.nama_bahan}: butuh ${formatNumber(usage)}, tersedia ${formatNumber(available)}, kurang ${formatNumber(shortfall)}`,
+          )
+        }
+      })
+
+      if (insufficient.length > 0) {
+        const message = `Stok tidak mencukupi untuk: ${insufficient.join(', ')}\n${insufficientDetails.join('\n')}`
         setError(message)
-        await showError('Akses ditolak', message)
+        await showError('Gagal menyimpan', message)
         return
       }
     }
@@ -262,13 +292,8 @@ export const OrderDetailPage = () => {
               type="button"
               className="primary-btn"
               onClick={() => {
-                if (isKaryawan && !baseStatus.toLowerCase().includes('proses')) return
-                if (isKaryawan) {
-                  setOrder((current) => (current ? { ...current, status_global: 'Selesai' } : null))
-                }
                 setEditing(true)
               }}
-              disabled={isKaryawan && !baseStatus.toLowerCase().includes('proses')}
             >
               Edit
             </button>
@@ -322,7 +347,7 @@ export const OrderDetailPage = () => {
               <thead>
                 <tr>
                   <th>Bahan</th>
-                  <th>Qty per Pcs</th>
+                  <th>Qty Bahan</th>
                 </tr>
               </thead>
               <tbody>
@@ -421,7 +446,6 @@ export const OrderDetailPage = () => {
               {editing ? (
                 <select
                   value={order.status_global}
-                  disabled={isKaryawan}
                   onChange={(event) =>
                     setOrder((current) => {
                       if (!current) return null
@@ -434,16 +458,12 @@ export const OrderDetailPage = () => {
                     })
                   }
                 >
-                  {isKaryawan ? (
+                  <>
+                    <option value="Menunggu">Menunggu</option>
+                    <option value="Proses">Proses</option>
                     <option value="Selesai">Selesai</option>
-                  ) : (
-                    <>
-                      <option value="Menunggu">Menunggu</option>
-                      <option value="Proses">Proses</option>
-                      <option value="Selesai">Selesai</option>
-                      <option value="Batal">Batal</option>
-                    </>
-                  )}
+                    <option value="Batal">Batal</option>
+                  </>
                 </select>
               ) : (
                 <StatusPill status={order.status_global} />

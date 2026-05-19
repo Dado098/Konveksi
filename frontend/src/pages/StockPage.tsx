@@ -143,14 +143,6 @@ export const StockPage = () => {
           batas_minimum: batasMinimum,
         })
         await showSuccess('Perubahan disimpan', 'Data bahan berhasil diperbarui.')
-        if (user) {
-          await api.createLog({
-            id_user: user.id_user,
-            id_alokasi: 0,
-            id_cabang: form.id_cabang,
-            tahapan: `Update bahan: ${form.nama_bahan}`,
-          })
-        }
       } else {
         await api.createBahan({
           ...form,
@@ -159,14 +151,6 @@ export const StockPage = () => {
           batas_minimum: batasMinimum,
         })
         await showSuccess('Data tersimpan', 'Bahan baru berhasil ditambahkan.')
-        if (user) {
-          await api.createLog({
-            id_user: user.id_user,
-            id_alokasi: 0,
-            id_cabang: form.id_cabang,
-            tahapan: `Tambah bahan: ${form.nama_bahan}`,
-          })
-        }
       }
       setOpen(false)
       setForm(initialForm)
@@ -186,14 +170,6 @@ export const StockPage = () => {
       await api.deleteBahan(id)
       await loadData()
       await showSuccess('Data dihapus', 'Bahan berhasil dihapus.')
-      if (user) {
-        await api.createLog({
-          id_user: user.id_user,
-          id_alokasi: 0,
-          id_cabang: cabangId,
-          tahapan: `Hapus bahan #${id}`,
-        })
-      }
     } catch (deleteError) {
       const message = parseApiError(deleteError)
       setError(message)
