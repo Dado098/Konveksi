@@ -52,9 +52,45 @@ func buildUsageByBahan(tx *gorm.DB, pesananID uint) (map[uint]float64, error) {
 		return nil, err
 	}
 
-	usage := make(map[uint]float64)
+	type usageStats struct {
+		sum   float64
+		min   float64
+		max   float64
+		count int
+	}
+
+	stats := make(map[uint]*usageStats)
 	for _, row := range detail {
-		usage[row.IDBahan] += float64(row.QtyBahanPerPcs)
+		value := float64(row.QtyBahanPerPcs)
+		entry, ok := stats[row.IDBahan]
+		if !ok {
+			stats[row.IDBahan] = &usageStats{
+				sum:   value,
+				min:   value,
+				max:   value,
+				count: 1,
+			}
+			continue
+		}
+
+		entry.sum += value
+		entry.count += 1
+		if value < entry.min {
+			entry.min = value
+		}
+		if value > entry.max {
+			entry.max = value
+		}
+	}
+
+	usage := make(map[uint]float64)
+	for bahanID, entry := range stats {
+		// Jika semua alokasi menyimpan nilai yang sama (total per pesanan), gunakan satu nilai saja.
+		if entry.count > 1 && entry.min == entry.max {
+			usage[bahanID] = entry.max
+			continue
+		}
+		usage[bahanID] = entry.sum
 	}
 
 	return usage, nil

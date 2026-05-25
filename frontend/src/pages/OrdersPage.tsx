@@ -54,9 +54,22 @@ export const OrdersPage = () => {
       await showError('Akses ditolak', 'Karyawan tidak diizinkan menghapus pesanan.')
       return
     }
+    const alokasiTarget = alokasi.find((item) => item.id_pesanan === id)
     try {
       const confirmed = await confirmDanger('Hapus pesanan?', 'Pesanan akan terhapus permanen.')
       if (!confirmed) return
+      if (user && alokasiTarget) {
+        try {
+          await api.createLog({
+            id_user: user.id_user,
+            id_alokasi: alokasiTarget.id_alokasi,
+            id_cabang: alokasiTarget.id_cabang,
+            tahapan: `Hapus pesanan #${id}`,
+          })
+        } catch {
+          // Abaikan kegagalan log agar proses delete tetap berjalan.
+        }
+      }
       await api.deletePesanan(id)
       const alokasiData = await api.getAlokasi()
       const orphanTargets = alokasiData.filter((item) => item.id_pesanan === id)
@@ -65,14 +78,6 @@ export const OrdersPage = () => {
       }
       await loadData()
       await showSuccess('Pesanan dihapus', 'Data pesanan berhasil dihapus.')
-      if (user) {
-        await api.createLog({
-          id_user: user.id_user,
-          id_alokasi: 0,
-          id_cabang: 0,
-          tahapan: `Hapus pesanan #${id}`,
-        })
-      }
     } catch (deleteError) {
       const message = parseApiError(deleteError)
       setError(message)

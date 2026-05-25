@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { parseApiError } from '../api/client'
 import { api } from '../api/services'
@@ -6,6 +6,7 @@ import { Card, StatusPill } from '../components/UI'
 import { useAuth } from '../context/useAuth'
 import { useRealtime } from '../hooks/useRealtime'
 import type { AlokasiProduksi, BahanBaku, Cabang, Pesanan } from '../types/api'
+import { showToast } from '../utils/alerts'
 import { formatDate, formatNumber } from '../utils/format'
 
 interface DashboardState {
@@ -25,6 +26,32 @@ const statusColor: Record<string, string> = {
 const piePalette = ['#5a52ea', '#ffa44c', '#d4d8e0']
 const barPalette = ['#5a52ea', '#26a6ff', '#ffa44c', '#2ad7a2', '#f87171', '#a855f7']
 
+type DssUrgency = 'critical' | 'high' | 'medium' | 'low'
+type DssType = 'deadline' | 'stock' | 'priority'
+
+interface DssNotification {
+  id: string
+  title: string
+  message: string
+  urgency: DssUrgency
+  type: DssType
+  href?: string
+}
+
+const getDeadlineUrgency = (daysLeft: number): DssUrgency => {
+  if (daysLeft <= 2) return 'critical'
+  if (daysLeft <= 4) return 'high'
+  if (daysLeft <= 6) return 'medium'
+  return 'low'
+}
+
+const getStockUrgency = (stok: number, batas: number): DssUrgency => {
+  if (stok <= 0) return 'critical'
+  if (stok <= Math.ceil(batas * 0.5)) return 'high'
+  if (stok <= batas) return 'medium'
+  return 'low'
+}
+
 export const DashboardPage = () => {
   const { user } = useAuth()
   const normalizeRole = (role?: string) => (role === 'admin' ? 'karyawan' : role)
@@ -34,6 +61,7 @@ export const DashboardPage = () => {
   // data menampung hasil fetch API untuk ringkasan dashboard
   const [data, setData] = useState<DashboardState>({ pesanan: [], bahan: [], alokasi: [], cabang: [] })
   const [error, setError] = useState<string | null>(null)
+  const lastToastKey = useRef('')
 
   // fetchData memuat seluruh data yang diperlukan dashboard dalam satu request batch
   const fetchData = useCallback(async () => {
@@ -146,6 +174,7 @@ export const DashboardPage = () => {
         stok: item.stok_aktual,
         batas: item.batas_minimum,
         cabang: cabangMap.get(item.id_cabang) ?? `Cabang ${item.id_cabang}`,
+        urgency: getStockUrgency(item.stok_aktual, item.batas_minimum),
       }))
   }, [data.bahan, cabangMap])
 
@@ -162,6 +191,7 @@ export const DashboardPage = () => {
         return {
           ...item,
           daysLeft,
+          urgency: getDeadlineUrgency(daysLeft),
         }
       })
       .filter((item) => item.daysLeft >= 0 && item.daysLeft <= limitDays)
@@ -182,11 +212,63 @@ export const DashboardPage = () => {
           ...item,
           daysLeft,
           score: urgencyScore + qtyScore,
+          urgency: urgencyScore >= 24 ? 'high' : urgencyScore >= 14 ? 'medium' : 'low',
         }
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, 5)
   }, [data.pesanan])
+
+  const notifications = useMemo<DssNotification[]>(() => {
+    const entries: DssNotification[] = []
+
+    lowStockItems.slice(0, 3).forEach((item) => {
+      entries.push({
+        id: `stock-${item.id}`,
+        title: 'Stok minimum',
+        message: `${item.nama} (${item.cabang}) tersisa ${item.stok}`,
+        urgency: item.urgency,
+        type: 'stock',
+        href: '/stok',
+      })
+    })
+
+    deadlineAlerts.slice(0, 3).forEach((item) => {
+      entries.push({
+        id: `deadline-${item.id_pesanan}`,
+        title: 'Deadline dekat',
+        message: `${item.nama_pesanan} jatuh tempo ${item.daysLeft} hari lagi`,
+        urgency: item.urgency,
+        type: 'deadline',
+        href: '/pesanan',
+      })
+    })
+
+    priorityQueue.slice(0, 3).forEach((item) => {
+      entries.push({
+        id: `priority-${item.id_pesanan}`,
+        title: 'Prioritas produksi',
+        message: `${item.nama_pesanan} skor ${Math.round(item.score)}`,
+        urgency: item.urgency,
+        type: 'priority',
+        href: '/pesanan',
+      })
+    })
+
+    return entries
+  }, [deadlineAlerts, lowStockItems, priorityQueue])
+
+  useEffect(() => {
+    const urgent = notifications.filter((item) => item.urgency === 'critical' || item.urgency === 'high')
+    const sessionKey = 'dss-toast-shown'
+    if (urgent.length > 0 && !sessionStorage.getItem(sessionKey)) {
+      lastToastKey.current = urgent.map((item) => item.id).join('|')
+      sessionStorage.setItem(sessionKey, '1')
+      void showToast('Peringatan DSS', `${urgent.length} notifikasi butuh perhatian`)
+    }
+
+    window.dispatchEvent(new CustomEvent('dss:notify', { detail: { notifications } }))
+  }, [notifications])
 
   return (
     <section className="page-grid">
@@ -222,7 +304,10 @@ export const DashboardPage = () => {
         )}
 
         {isKaryawan ? (
-          <Card title="Monitoring Pesanan Aktif">
+          <Card
+            title="Monitoring Pesanan Aktif"
+            actions={<span className={`urgency-badge ${activeTotal > 0 ? 'medium' : 'low'}`}>{activeTotal > 0 ? 'aktif' : 'normal'}</span>}
+          >
             <div className="pie-row">
               <div className="pie-item">
                 <ResponsiveContainer width={130} height={130}>
@@ -347,7 +432,12 @@ export const DashboardPage = () => {
           </div>
         </Card>
 
-        <Card title="Daftar Pesanan Aktif">
+        <Card
+          title="Pesanan Menunggu & Proses"
+          actions={
+            <span className={`urgency-badge ${activeTotal > 3 ? 'high' : activeTotal > 0 ? 'medium' : 'low'}`}>{activeTotal} aktif</span>
+          }
+        >
           <div className="simple-table">
             <div className="thead">
               <span>Nama Pemesan</span>
@@ -355,7 +445,7 @@ export const DashboardPage = () => {
               <span>Deadline</span>
               <span>Status</span>
             </div>
-            {data.pesanan.filter((item) => !item.status_global.toLowerCase().includes('batal')).slice(0, 4).map((item) => (
+            {activeOrders.slice(0, 4).map((item) => (
               <div className="trow" key={item.id_pesanan}>
                 <span>{item.nama_pesanan}</span>
                 <span>{formatNumber(item.total_qty)}</span>
@@ -367,7 +457,10 @@ export const DashboardPage = () => {
         </Card>
 
         {!isKaryawan && (
-          <Card title="Notifikasi Stok Minimum">
+          <Card
+            title="Notifikasi Stok Minimum"
+            actions={<span className={`urgency-badge ${lowStockItems.length > 0 ? 'high' : 'low'}`}>{lowStockItems.length} item</span>}
+          >
             <div className="simple-table">
               <div className="thead">
                 <span>Bahan</span>
@@ -386,6 +479,7 @@ export const DashboardPage = () => {
                     <span>{item.cabang}</span>
                     <span>{item.stok}</span>
                     <span>{item.batas}</span>
+                    <span className={`urgency-badge ${item.urgency}`}>{item.urgency}</span>
                   </div>
                 ))
               )}
@@ -393,13 +487,17 @@ export const DashboardPage = () => {
           </Card>
         )}
 
-        <Card title="Notifikasi Deadline">
+          <Card
+            title="Notifikasi Deadline"
+            actions={<span className={`urgency-badge ${deadlineAlerts.length > 0 ? 'high' : 'low'}`}>{deadlineAlerts.length} alert</span>}
+          >
           <div className="simple-table">
             <div className="thead">
               <span>Pesanan</span>
               <span>Deadline</span>
               <span>Sisa</span>
               <span>Status</span>
+                <span>Urgensi</span>
             </div>
             {deadlineAlerts.length === 0 ? (
               <div className="trow">
@@ -412,19 +510,24 @@ export const DashboardPage = () => {
                   <span>{formatDate(item.tgl_deadline)}</span>
                   <span>{item.daysLeft} hari</span>
                   <StatusPill status={item.status_global} />
+                    <span className={`urgency-badge ${item.urgency}`}>{item.urgency}</span>
                 </div>
               ))
             )}
           </div>
         </Card>
 
-        <Card title="Antrian Prioritas Produksi">
+          <Card
+            title="Antrian Prioritas Produksi"
+            actions={<span className={`urgency-badge ${priorityQueue.length > 0 ? 'medium' : 'low'}`}>{priorityQueue.length} antre</span>}
+          >
           <div className="simple-table">
             <div className="thead">
               <span>Pesanan</span>
               <span>Qty</span>
               <span>Sisa</span>
               <span>Skor</span>
+                <span>Urgensi</span>
             </div>
             {priorityQueue.length === 0 ? (
               <div className="trow">
@@ -437,6 +540,7 @@ export const DashboardPage = () => {
                   <span>{formatNumber(item.total_qty)}</span>
                   <span>{item.daysLeft} hari</span>
                   <span>{Math.round(item.score)}</span>
+                    <span className={`urgency-badge ${item.urgency}`}>{item.urgency}</span>
                 </div>
               ))
             )}

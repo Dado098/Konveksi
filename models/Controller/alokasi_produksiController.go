@@ -94,10 +94,50 @@ func UpdateAlokasi(c *gin.Context) {
 		return
 	}
 
+	previousStatus := normalizeStatus(data.StatusLokal)
+
 	var input models.AlokasiProduksi
 	c.ShouldBindJSON(&input)
 
-	config.DB.Model(&data).Updates(input)
+	nextStatus := normalizeStatus(input.StatusLokal)
+	if nextStatus == "" {
+		nextStatus = previousStatus
+	}
+
+	tx := config.DB.Begin()
+	if err := tx.Model(&data).Updates(input).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if previousStatus != statusProses && nextStatus == statusProses {
+		var pesanan models.PesananGlobal
+		if err := tx.First(&pesanan, data.IDPesanan).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if normalizeStatus(pesanan.StatusGlobal) != statusProses {
+			if err := tx.Model(&pesanan).Update("status_global", "Proses").Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			if err := applyStockChange(tx, data.IDPesanan, true); err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, data)
 }

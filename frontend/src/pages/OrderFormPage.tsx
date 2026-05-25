@@ -142,6 +142,50 @@ export const OrderFormPage = () => {
       return
     }
 
+    const bahanMap = new Map(bahan.map((item) => [item.id_bahan, item]))
+    const cabangMap = new Map(cabang.map((item) => [item.id_cabang, item.nama_cabang]))
+    const missingBahan: string[] = []
+    const insufficient: string[] = []
+
+    material.forEach((item) => {
+      const bahanItem = bahanMap.get(item.id_bahan)
+      const bahanName = bahanItem?.nama_bahan ?? `Bahan #${item.id_bahan}`
+      if (!bahanItem) {
+        missingBahan.push(`${bahanName} (data bahan tidak ditemukan)`)
+        return
+      }
+
+      alokasi.forEach((alokasiItem) => {
+        const cabangLabel = cabangMap.get(alokasiItem.id_cabang) ?? `Cabang ${alokasiItem.id_cabang}`
+        const cabangBahan = bahan.find(
+          (entry) => entry.id_cabang === alokasiItem.id_cabang && entry.nama_bahan === bahanName,
+        )
+
+        if (!cabangBahan) {
+          missingBahan.push(`${bahanName} tidak tersedia di ${cabangLabel}`)
+          return
+        }
+
+        const proportion = alokasiItem.qty_alokasi / totalQty
+        const needed = Math.ceil(item.qty_bahan_per_pcs * proportion)
+        if (cabangBahan.stok_aktual < needed) {
+          insufficient.push(
+            `${bahanName} (${cabangLabel}): butuh ${formatNumber(needed)}, tersedia ${formatNumber(cabangBahan.stok_aktual)}`,
+          )
+        }
+      })
+    })
+
+    if (missingBahan.length > 0) {
+      await showValidationError(`Bahan tidak tersedia di cabang:\n${missingBahan.join('\n')}`)
+      return
+    }
+
+    if (insufficient.length > 0) {
+      await showValidationError(`Stok tidak mencukupi:\n${insufficient.join('\n')}`)
+      return
+    }
+
     if (!form.tgl_deadline) {
       await showValidationError('Deadline wajib diisi')
       return
@@ -152,15 +196,25 @@ export const OrderFormPage = () => {
       await showValidationError('Deadline tidak valid')
       return
     }
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const deadlineOnly = new Date(deadlineDate)
+    deadlineOnly.setHours(0, 0, 0, 0)
+    if (deadlineOnly < today) {
+      await showValidationError('Deadline tidak boleh di masa lalu')
+      return
+    }
 
     try {
+      const desiredStatus = form.status_global
+      const createStatus = desiredStatus === 'Proses' ? 'Menunggu' : desiredStatus
       const created = await api.createPesanan({
         nama_pesanan: trimmedName,
         total_qty: totalQty,
         harga_flat: hargaFlat,
         bayar: 0,
         tgl_deadline: deadlineDate.toISOString(),
-        status_global: form.status_global,
+        status_global: createStatus,
       })
 
       const alokasiResults = await Promise.all(
@@ -169,7 +223,7 @@ export const OrderFormPage = () => {
             id_pesanan: created.id_pesanan,
             id_cabang: item.id_cabang,
             qty_alokasi: item.qty_alokasi,
-            status_lokal: form.status_global,
+            status_lokal: createStatus,
           }),
         ),
       )
@@ -186,13 +240,29 @@ export const OrderFormPage = () => {
         ),
       )
 
+      if (desiredStatus === 'Proses') {
+        try {
+          await api.updatePesanan(created.id_pesanan, {
+            nama_pesanan: trimmedName,
+            total_qty: totalQty,
+            harga_flat: hargaFlat,
+            bayar: 0,
+            tgl_deadline: deadlineDate.toISOString(),
+            status_global: desiredStatus,
+          })
+        } catch (updateError) {
+          const message = parseApiError(updateError)
+          setError(message)
+          await showError('Stok belum berkurang', message)
+        }
+      }
+
       await showSuccess('Pesanan dibuat', 'Data pesanan dan alokasi berhasil disimpan.')
-      if (user) {
-        const firstAllocation = alokasiResults[0]
+      if (user && alokasiResults[0]) {
         await api.createLog({
           id_user: user.id_user,
-          id_alokasi: firstAllocation?.id_alokasi ?? 0,
-          id_cabang: firstAllocation?.id_cabang ?? 0,
+          id_alokasi: alokasiResults[0].id_alokasi,
+          id_cabang: alokasiResults[0].id_cabang,
           tahapan: `Tambah pesanan: ${form.nama_pesanan}`,
         })
       }

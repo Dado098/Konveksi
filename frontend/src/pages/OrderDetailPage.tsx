@@ -88,20 +88,23 @@ export const OrderDetailPage = () => {
     try {
       const confirmed = await confirmDanger('Hapus pesanan?', 'Pesanan akan terhapus permanen.')
       if (!confirmed) return
+      if (user && alokasi[0]) {
+        try {
+          await api.createLog({
+            id_user: user.id_user,
+            id_alokasi: alokasi[0].id_alokasi,
+            id_cabang: alokasi[0].id_cabang,
+            tahapan: `Hapus pesanan: ${order.nama_pesanan}`,
+          })
+        } catch {
+          // Abaikan kegagalan log agar proses delete tetap berjalan.
+        }
+      }
       await api.deletePesanan(order.id_pesanan)
       if (alokasi.length > 0) {
         await Promise.all(alokasi.map((item) => api.deleteAlokasi(item.id_alokasi)))
       }
       await showSuccess('Pesanan dihapus', 'Data pesanan berhasil dihapus.')
-      if (user) {
-        const firstAllocation = alokasi[0]
-        await api.createLog({
-          id_user: user.id_user,
-          id_alokasi: firstAllocation?.id_alokasi ?? 0,
-          id_cabang: firstAllocation?.id_cabang ?? 0,
-          tahapan: `Hapus pesanan: ${order.nama_pesanan}`,
-        })
-      }
       navigate('/pesanan')
     } catch (deleteError) {
       const message = parseApiError(deleteError)
@@ -121,6 +124,35 @@ export const OrderDetailPage = () => {
     const alokasiIds = new Set(alokasi.map((item) => item.id_alokasi))
     return detailBahan.filter((item) => alokasiIds.has(item.id_alokasi))
   }, [detailBahan, alokasi])
+
+  const buildUsageByBahan = useCallback((rows: DetailKebutuhanBahan[]) => {
+    type UsageStats = { sum: number; min: number; max: number; count: number }
+    const stats = new Map<number, UsageStats>()
+
+    rows.forEach((detail) => {
+      const value = Number(detail.qty_bahan_per_pcs) || 0
+      const existing = stats.get(detail.id_bahan)
+      if (!existing) {
+        stats.set(detail.id_bahan, { sum: value, min: value, max: value, count: 1 })
+        return
+      }
+      existing.sum += value
+      existing.count += 1
+      if (value < existing.min) existing.min = value
+      if (value > existing.max) existing.max = value
+    })
+
+    const usageByBahan = new Map<number, number>()
+    stats.forEach((entry, bahanId) => {
+      if (entry.count > 1 && entry.min === entry.max) {
+        usageByBahan.set(bahanId, entry.max)
+        return
+      }
+      usageByBahan.set(bahanId, entry.sum)
+    })
+
+    return usageByBahan
+  }, [])
 
   // exportDetail mengunduh CSV detail alokasi pesanan
   const exportDetail = () => {
@@ -151,14 +183,7 @@ export const OrderDetailPage = () => {
     const normalizedBase = baseStatus.toLowerCase()
     const normalizedNext = order.status_global.toLowerCase()
     if (normalizedBase !== 'proses' && normalizedNext === 'proses') {
-      const usageByBahan = new Map<number, number>()
-
-      detailBahan.forEach((detail) => {
-        usageByBahan.set(
-          detail.id_bahan,
-          (usageByBahan.get(detail.id_bahan) ?? 0) + detail.qty_bahan_per_pcs,
-        )
-      })
+      const usageByBahan = buildUsageByBahan(detailRows)
 
       const insufficient: string[] = []
       const insufficientDetails: string[] = []
@@ -235,6 +260,16 @@ export const OrderDetailPage = () => {
       await showError('Validasi gagal', message)
       return
     }
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const deadlineOnly = new Date(deadlineDate)
+    deadlineOnly.setHours(0, 0, 0, 0)
+    if (deadlineOnly < today) {
+      const message = 'Deadline tidak boleh di masa lalu'
+      setError(message)
+      await showError('Validasi gagal', message)
+      return
+    }
 
     try {
       await api.updatePesanan(order.id_pesanan, {
@@ -251,12 +286,11 @@ export const OrderDetailPage = () => {
       setEditing(false)
       await fetchData()
       await showSuccess('Perubahan disimpan', 'Detail pesanan berhasil diperbarui.')
-      if (user) {
-        const firstAllocation = alokasi[0]
+      if (user && alokasi[0]) {
         await api.createLog({
           id_user: user.id_user,
-          id_alokasi: firstAllocation?.id_alokasi ?? 0,
-          id_cabang: firstAllocation?.id_cabang ?? 0,
+          id_alokasi: alokasi[0].id_alokasi,
+          id_cabang: alokasi[0].id_cabang,
           tahapan: `Update pesanan: ${order.nama_pesanan}`,
         })
       }

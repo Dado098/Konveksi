@@ -28,6 +28,18 @@ export const showInfo = async (title: string, text?: string) => {
   })
 }
 
+export const showToast = async (title: string, text?: string) => {
+  await Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'warning',
+    title,
+    text,
+    timer: 2500,
+    showConfirmButton: false,
+  })
+}
+
 export const confirmDanger = async (title: string, text?: string) => {
   const result = await Swal.fire({
     icon: 'warning',
