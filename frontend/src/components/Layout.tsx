@@ -1,4 +1,5 @@
-import { Bell, BookText, Boxes, ClipboardList, Gauge, History, LogOut, PackageOpen, Search } from 'lucide-react'
+import { Bell, BookText, Boxes, ClipboardList, Gauge, History, LogOut, Menu, PackageOpen, Search, X } from 'lucide-react'
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { confirmDanger, showSuccess } from '../utils/alerts'
@@ -23,6 +24,7 @@ export const Layout = () => {
   // user dan logout berasal dari AuthContext
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const normalizedRole = normalizeRole(user?.role)
   const visibleNav = normalizedRole === 'owner' ? navItems.owner : navItems.karyawan
   const roleLabel = normalizedRole === 'karyawan' ? 'karyawan' : user?.role
@@ -36,7 +38,7 @@ export const Layout = () => {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         {/* Sidebar utama: brand + menu navigasi */}
         <div className="brand">
           <div className="brand-logo">JR</div>
@@ -52,6 +54,7 @@ export const Layout = () => {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}
+                onClick={() => setIsSidebarOpen(false)}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -66,9 +69,24 @@ export const Layout = () => {
         </button>
       </aside>
 
+      <button
+        type="button"
+        className={`sidebar-backdrop ${isSidebarOpen ? 'show' : ''}`}
+        aria-label="Tutup navigasi"
+        onClick={() => setIsSidebarOpen(false)}
+      />
+
       <div className="main-panel">
         <header className="topbar">
           {/* Topbar: search dummy, notifikasi, dan user info */}
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-label={isSidebarOpen ? 'Tutup navigasi' : 'Buka navigasi'}
+            onClick={() => setIsSidebarOpen((prev) => !prev)}
+          >
+            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
           <div className="search-wrap">
             <Search size={16} />
             <input placeholder="Search" />

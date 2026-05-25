@@ -91,7 +91,7 @@ export const HistoryPage = () => {
 
       <Card title="Riwayat Edit">
         <div className="table-scroll">
-          <table>
+          <table className="stack-table">
             <thead>
               <tr>
                 <th>No</th>
@@ -104,8 +104,8 @@ export const HistoryPage = () => {
             </thead>
             <tbody>
               {logs.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>Belum ada aktivitas yang tercatat.</td>
+                <tr className="empty-row">
+                  <td colSpan={6} data-label="Info">Belum ada aktivitas yang tercatat.</td>
                 </tr>
               ) : (
                 logs.map((item, index) => {
@@ -120,12 +120,12 @@ export const HistoryPage = () => {
 
                   return (
                     <tr key={item.id_log}>
-                      <td>{index + 1}</td>
-                      <td>{userName}</td>
-                      <td>{pesananName ?? '-'}</td>
-                      <td>{cabangName ?? '-'}</td>
-                      <td>{item.tahapan}</td>
-                      <td>{formatDate(item.waktu_update)}</td>
+                      <td data-label="No">{index + 1}</td>
+                      <td data-label="User">{userName}</td>
+                      <td data-label="Pesanan">{pesananName ?? '-'}</td>
+                      <td data-label="Cabang">{cabangName ?? '-'}</td>
+                      <td data-label="Aktivitas">{item.tahapan}</td>
+                      <td data-label="Tanggal">{formatDate(item.waktu_update)}</td>
                     </tr>
                   )
                 })

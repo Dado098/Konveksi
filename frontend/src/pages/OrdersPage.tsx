@@ -171,7 +171,7 @@ export const OrdersPage = () => {
 
       <Card title="Data Pesanan">
         <div className="table-scroll">
-          <table>
+          <table className="stack-table">
             <thead>
               <tr>
                 <th>No</th>
@@ -187,18 +187,18 @@ export const OrdersPage = () => {
             <tbody>
               {visibleOrders.map((item, index) => (
                 <tr key={item.id_pesanan}>
-                  <td>{index + 1}</td>
-                  <td>
+                  <td data-label="No">{index + 1}</td>
+                  <td data-label="Nama Pemesan">
                     <Link to={`/pesanan/${item.id_pesanan}`}>{item.nama_pesanan}</Link>
                   </td>
-                  <td>K{item.id_pesanan.toString().padStart(4, '0')}</td>
-                  <td>{getBahanLabel(item.id_pesanan)}</td>
-                  <td>{item.total_qty}</td>
-                  <td>{formatDate(item.tgl_deadline)}</td>
-                  <td>
+                  <td data-label="Kode">K{item.id_pesanan.toString().padStart(4, '0')}</td>
+                  <td data-label="Bahan">{getBahanLabel(item.id_pesanan)}</td>
+                  <td data-label="Jumlah">{item.total_qty}</td>
+                  <td data-label="Deadline">{formatDate(item.tgl_deadline)}</td>
+                  <td data-label="Status">
                     <StatusPill status={item.status_global} />
                   </td>
-                  <td>
+                  <td data-label="Aksi">
                     <div className="action-row">
                       <button
                         type="button"

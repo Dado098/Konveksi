@@ -240,7 +240,7 @@ export const StockPage = () => {
 
       <Card title="Data Bahan">
         <div className="table-scroll">
-          <table>
+          <table className="stack-table">
             <thead>
               <tr>
                 <th>No</th>
@@ -255,15 +255,15 @@ export const StockPage = () => {
             <tbody>
               {rowData.map((item, index) => (
                 <tr key={item.id_bahan}>
-                  <td>{index + 1}</td>
-                  <td>{item.nama_bahan}</td>
-                  <td>{item.stok_aktual}</td>
-                  <td>{item.batas_minimum}</td>
-                  <td>{item.cabangLabel}</td>
-                  <td>
+                  <td data-label="No">{index + 1}</td>
+                  <td data-label="Nama Bahan">{item.nama_bahan}</td>
+                  <td data-label="Tersedia">{item.stok_aktual}</td>
+                  <td data-label="Batas Minimum">{item.batas_minimum}</td>
+                  <td data-label="Cabang">{item.cabangLabel}</td>
+                  <td data-label="Status">
                     <StatusPill status={item.status} />
                   </td>
-                  <td>
+                  <td data-label="Aksi">
                     <div className="action-row">
                       <button type="button" className="outline-btn" onClick={() => openEdit(item)}>
                         Edit

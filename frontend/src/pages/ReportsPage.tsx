@@ -172,7 +172,7 @@ export const ReportsPage = () => {
       <div className={`reports-layout ${openFilter ? 'with-filter' : ''}`}>
         <Card>
           <div className="table-scroll">
-            <table>
+            <table className="stack-table">
               <thead>
                 <tr>
                   <th>Kode</th>
@@ -188,14 +188,14 @@ export const ReportsPage = () => {
               <tbody>
                 {filteredOrders.map((item) => (
                   <tr key={item.id_pesanan}>
-                    <td>K{item.id_pesanan.toString().padStart(4, '0')}</td>
-                    <td>{item.nama_pesanan}</td>
-                    <td>{getBahanLabel(item.id_pesanan)}</td>
-                    <td>{formatNumber(item.total_qty)}</td>
-                    <td>Rp{formatNumber(getHargaFlat(item))}</td>
-                    <td>{formatDate(item.tgl_deadline)}</td>
-                    <td>Rp{formatNumber(item.bayar ?? 0)}</td>
-                    <td>
+                    <td data-label="Kode">K{item.id_pesanan.toString().padStart(4, '0')}</td>
+                    <td data-label="Nama Pemesan">{item.nama_pesanan}</td>
+                    <td data-label="Bahan">{getBahanLabel(item.id_pesanan)}</td>
+                    <td data-label="Jumlah">{formatNumber(item.total_qty)}</td>
+                    <td data-label="Harga Flat">Rp{formatNumber(getHargaFlat(item))}</td>
+                    <td data-label="Tanggal">{formatDate(item.tgl_deadline)}</td>
+                    <td data-label="Bayar">Rp{formatNumber(item.bayar ?? 0)}</td>
+                    <td data-label="Status">
                       <StatusPill status={item.status_global} />
                     </td>
                   </tr>
