@@ -227,7 +227,7 @@ export const DashboardPage = () => {
         id: `stock-${item.id}`,
         title: 'Stok minimum',
         message: `${item.nama} (${item.cabang}) tersisa ${item.stok}`,
-        urgency: item.urgency,
+        urgency: item.urgency as DssUrgency,
         type: 'stock',
         href: '/stok',
       })
@@ -238,7 +238,7 @@ export const DashboardPage = () => {
         id: `deadline-${item.id_pesanan}`,
         title: 'Deadline dekat',
         message: `${item.nama_pesanan} jatuh tempo ${item.daysLeft} hari lagi`,
-        urgency: item.urgency,
+         urgency: item.urgency as DssUrgency,
         type: 'deadline',
         href: '/pesanan',
       })
@@ -249,7 +249,7 @@ export const DashboardPage = () => {
         id: `priority-${item.id_pesanan}`,
         title: 'Prioritas produksi',
         message: `${item.nama_pesanan} skor ${Math.round(item.score)}`,
-        urgency: item.urgency,
+         urgency: item.urgency as DssUrgency,
         type: 'priority',
         href: '/pesanan',
       })

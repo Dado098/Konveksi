@@ -33,7 +33,7 @@ export const StockPage = () => {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<BahanBaku | null>(null)
   const [form, setForm] = useState<BahanForm>(initialForm)
-  const { user } = useAuth()
+  useAuth()
 
   // loadData mengambil data master yang dipakai pada tabel dan dropdown
   const loadData = useCallback(async () => {
@@ -163,7 +163,7 @@ export const StockPage = () => {
   }
 
   // remove menghapus bahan berdasarkan id
-  const remove = async (id: number, cabangId: number) => {
+  const remove = async (id: number) => {
     try {
       const confirmed = await confirmDanger('Hapus bahan?', 'Data yang dihapus tidak bisa dikembalikan.')
       if (!confirmed) return
@@ -271,7 +271,7 @@ export const StockPage = () => {
                       <button
                         type="button"
                         className="outline-btn danger"
-                        onClick={() => void remove(item.id_bahan, item.id_cabang)}
+                       onClick={() => void remove(item.id_bahan)}
                       >
                         Hapus
                       </button>
