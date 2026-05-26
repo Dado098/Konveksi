@@ -46,7 +46,7 @@ func buildDSN() string {
 
 	user := getEnv("DB_USER", "root")
 	password := os.Getenv("LivAiuaLaybTDZDnpNFmpFqQkjMezhWA")
-	host := getEnv("DB_HOST", "ramway.proxy.rlwy.net")
+	host := getEnv("DB_HOST", "tramway.proxy.rlwy.net")
 	port := getEnv("DB_PORT", "58900")
 	name := getEnv("DB_NAME", "railway")
 
