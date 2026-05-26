@@ -283,7 +283,8 @@ func ensureLogAlokasiFK() {
 func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		if origin == "http://localhost:5173" || origin == "http://127.0.0.1:5173" {
+		if origin == "http://localhost:5173" || origin == "http://127.0.0.1:5173" ||
+			origin == "https://webjrkonveksi.waroengasrie.my.id" {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 
