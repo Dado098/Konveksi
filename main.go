@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"os"
 
 	"jr-konveksi/config"
 	"jr-konveksi/models"
@@ -134,7 +135,12 @@ func main() {
 
 	}
 
-	r.Run(":3000")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	r.Run(":" + port)
 }
 
 // fixInvalidConstraints membersihkan constraint yang salah arah dari migrasi lama.
