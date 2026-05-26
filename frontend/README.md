@@ -62,7 +62,7 @@ npm run build
 
 ## Konfigurasi Environment
 
-- `VITE_API_BASE_URL` default: `http://localhost:3000/api`
+- `VITE_API_BASE_URL` default: `https://konveksi-production-f758.up.railway.app/api`
 
 ## Validasi Frontend Selaras Backend
 
